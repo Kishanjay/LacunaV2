@@ -1,0 +1,24 @@
+{
+  "name": "lacunav2",
+  "version": "1.0.0",
+  "description": "Lacuna improved",
+  "main": "lacuna.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Lacuna",
+    "deadcode",
+    "javascript",
+    "tool"
+  ],
+  "author": "Kishan Nirghin",
+  "license": "ISC",
+  "dependencies": {
+    "command-line-args": "^5.0.2",
+    "fs-extra": "^7.0.1",
+    "prompt-confirm": "^2.0.4",
+    "prompt-sync": "^4.1.6",
+    "winston": "^3.2.1"
+  }
+}
