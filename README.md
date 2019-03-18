@@ -1,7 +1,14 @@
 # Lacuna V2
 A cleaner, simpler, production ready version of Lacuna.
 
-`./lacuna <sourceFolder> -a static`
+`node ./lacuna <sourceFolder> -a static`
+
+## How to use
+The intuition is that lacuna runs on a source folder; Relative to this folder 
+it will will look for the entry file. From the entry file, all references to 
+JS files and all inline JS scripts will be considered for optimization.
+
+__Thus all files that are not referenced by the entry file will be skipped__
 
 ## Runtime options
 

@@ -12,22 +12,15 @@
 'use strict';
 
 require("./prototype_extension");
-const logger = require("./logger");
+const logger = require("./_logger");
+const lacunizer = require("./_lacunizer");
 
 const commandLineArgs = require('command-line-args'),
     fs = require('fs-extra'),
     path = require('path'),
     Confirm = require('prompt-confirm');
 
-
-const ANALYZERS_DIR = "analyzers";
-const OPTIMIZATION_LEVELS = [
-    0, // do not replace anything, leaves source-code intact
-    1, // replace functions with lazy loading mechanism
-    2, // replace functions with empty functions
-    3, // replace functions with null
-    4, // remove function reference entirely
-];
+const lacunaSettings = require("./_settings");
 
 /* Default runOptions */
 let runOptions = {
@@ -63,27 +56,42 @@ if (!runOptions) { throw logger.error("Invalid runOptions"); }
 logger.silly("runOptions OK");
 
 /* Verify all runtime options */
-verifyRunOptions(runOptions).then((result) => {
-    logger.verbose("runOptions verified");
+verifyRunOptions(runOptions)
+    .catch((verifyError) => { process.exit(1); })
+    .then((result) => {
+        logger.verbose("runOptions verified");
 
-    /* Change directory to destination after copy */
-    if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
-        fs.copySync(runOptions.directory, runOptions.destination);
+        /* If a different destination is chosen, copy current directory content */
+        if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
+            fs.copySync(runOptions.directory, runOptions.destination);
+            
+            // the rest of the script will be using this param
+            runOptions.directory = runOptions.destination;
+        }
 
-        runOptions.originalDirectory = runOptions.directory;
-        runOptions.directory = runOptions.destination;
-    }
+        /* Startup lacuna */
+        logger.info("runOptions: " + JSON.stringify(runOptions));
+        logger.info("Starting Lacuna");
 
-    /* Startup lacuna */
-    logger.info("runOptions: " + JSON.stringify(runOptions));
-    logger.info("Starting Lacuna");
-});
+        // RUN
+        try {
+            lacunizer.run(runOptions);
+        } catch (error) {
+            console.log("Catch run");
+            console.log(error);
+        }
+    })
+    .catch((error) => { return logger.error(error); });
 
 
 
 /**
- * Big function that only verifies the runOptions
- * @param {*} runOptions 
+ * Big function that verifies most of the runOptions
+ *  - Verify directory: should be a valid directory
+ *  - Verify analyzer: should be an existing analyzer
+ *  - Verify entryfile: should be an existing file
+ *  - Verify optimization level: should be in the expected range
+ * @param runOptions
  */
 async function verifyRunOptions(runOptions) {
     /* Verify runOptions.directory */
@@ -99,9 +107,8 @@ async function verifyRunOptions(runOptions) {
         throw logger.error("Invalid analyzer: " + runOptions.analyzer);
     }
     runOptions.analyzer.forEach((analyzer) => {
-        var analyzerPath = path.join(ANALYZERS_DIR, analyzer) + ".js";
+        var analyzerPath = path.join(lacunaSettings.ANALYZERS_DIR, analyzer) + ".js";
         if (!fs.existsSync(analyzerPath)) {
-            logger.error("Analyzer does not exist: " + analyzerPath);
             throw logger.error("Invalid analyzer: " + analyzer);
         }
     });
@@ -118,7 +125,7 @@ async function verifyRunOptions(runOptions) {
     logger.silly("runOptions.entry OK");
 
     /* Verify runOptions.olevel */
-    if (!OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
+    if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
         throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
     }
     logger.silly("runOptions.olevel OK");
@@ -130,11 +137,12 @@ async function verifyRunOptions(runOptions) {
     /* Verify runOptions.force */
 
     /* Verify runOptions.destination */
-    if (runOptions.destination &&
-        fs.existsSync(runOptions.destination) &&
-        !runOptions.force) {
-        var answer = await prompt(`Warning "${runOptions.destination}" already exists, are you sure you want to overwrite?`);
-        if (!answer || answer != true) { process.exit(1); }        
+    if (runOptions.destination && fs.existsSync(runOptions.destination)) {
+        if (!runOptions.force) {
+            var answer = await prompt(`Warning "${runOptions.destination}" already exists, are you sure you want to overwrite?`);
+            if (!answer || answer != true) { process.exit(1); }        
+        }
+        logger.verbose(`Overwriting output ${runOptions.destination}`);
     }
     logger.silly("runOptions.destination OK");
 }

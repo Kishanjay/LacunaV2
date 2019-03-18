@@ -19,6 +19,8 @@
     "fs-extra": "^7.0.1",
     "prompt-confirm": "^2.0.4",
     "prompt-sync": "^4.1.6",
-    "winston": "^3.2.1"
+    "winston": "^3.2.1",
+    "cheerio": "^1.0.0-rc.2",
+    "esprima": "^4.0.1"
   }
 }
