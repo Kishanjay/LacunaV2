@@ -12,6 +12,7 @@
  */
 
 const path = require("path");
+const logger = require("./_logger");
 
 const JsEditor = require("./js_editor"),
     HTMLEditor = require("./html_editor"),
@@ -32,18 +33,24 @@ function run(runOptions) {
     var callGraph = new CallGraph(functions);
     var analyzers = retrieveAnalyzers(runOptions.analyzer);
     
+    var analyzerResults = [];
     analyzers.forEach((analyzer) => {
         try {
-            analyzer.run(runOptions, callGraph, scripts, (result) => {
-                console.log(callGraph.getStatistics());
-                
+            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
+                console.log(edges);
+                logger.verbose(`Analyzer[${analyzer.name}] finished`);
+                analyzerResults.push({
+                    analyzer: analyzer.name,
+                    edges: edges
+                });
             });
         } catch (error) {
             console.log("Catch analyzer");
             console.log(error);
         }     
     });
-    console.log(callGraph.getDOT());
+
+    return { callGraph, analyzerResults };
 }
 
 
@@ -103,12 +110,10 @@ function retrieveAnalyzers(analyzerNames) {
     analyzerNames.forEach((analyzerName) => {
         var analyzerRequirePath = "./" + path.join(lacunaSettings.ANALYZERS_DIR, analyzerName);
         var Analyzer = require(analyzerRequirePath);
-        analyzers.push(new Analyzer());
+        analyzers.push({ name: analyzerName, object: new Analyzer() });
     });
 
     return analyzers;
-
-    
 }
 
 

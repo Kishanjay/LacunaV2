@@ -41,7 +41,6 @@ module.exports = class JsEditor {
             if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
                 functionData.push({
                     type: node.type,
-                    bodyRange: node.body.range,
                     range: node.range,
                     file: this.filePath,
                     index: index++

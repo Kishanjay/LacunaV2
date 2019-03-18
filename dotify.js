@@ -47,7 +47,7 @@ class Dotify {
      * 
      * @param {String} node1 
      * @param {String} node2 
-     * @param {Array<option>} options [{key: null, value: value}]
+     * @param {Object} options
      */
     addEdge(node1, node2, options) {
         this.edges.push({
@@ -95,13 +95,13 @@ function objectToDOT(obj) {
 
         if (edge.options) {
             var edgeDOTOptions = "[";
-            edge.options.forEach((option) => {
-                edgeDOTOptions += `${option.key}="${option.value}" ` 
-            });
+            for (const [key, value] of Object.entries(edge.options)) {
+                edgeDOTOptions += `${key}="${value}" `;
+            }
             edgeDOTOptions += "]";
             edgeDOT += " " + edgeDOTOptions;
         }
-        edgeDOT += "\n";
+        edgeDOT += ";\n";
         DOT.push(edgeDOT);
     });
     DOT.push("}");

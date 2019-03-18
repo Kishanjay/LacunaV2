@@ -21,7 +21,7 @@ String.prototype.splice = function(index, count, add) {
 
 
 Object.prototype.extend = function (obj) {
-  for (key in obj) {
+  for (var key in obj) {
     this[key] = obj[key];
   }
 }

@@ -38,11 +38,11 @@ module.exports = class CallGraph {
      *  caller: functionData
      * }
      */
-    addEdge(edge) {
+    addEdge(edge, analyzer) {
         var calleeNode = this.getNode(edge.called);
         var callerNode = this.getNode(edge.caller);
 
-        callerNode.addEdge(calleeNode);
+        callerNode.addEdge(calleeNode, analyzer);
     }
 
     /** Fetches the Node object based on the function data */
@@ -99,13 +99,13 @@ module.exports = class CallGraph {
     }
 
     /** The nodes that are not called by any node AKA dead functions */
-    getDisconnectedNodes() {
-        var connectedNodes = this.getConnectedNodes();
+    getDisconnectedNodes(strip) {
+        var connectedNodes = this.getConnectedNodes(strip);
 
         var disconnectedNodes = [];
         this.nodes.forEach((node) => {
-            if (!connectedNodes.includes(node)) {
-                disconnectedNodes.push(node);
+            if (!connectedNodes.includes(node.functionData)) {
+                disconnectedNodes.push(node.functionData);
             }
         });
 
@@ -113,18 +113,18 @@ module.exports = class CallGraph {
     }
 
     /** All nodes (except the rootNodes) that have been called */
-    getConnectedNodes() {
+    getConnectedNodes(strip) {
         var connectedNodes = [];
 
         this.rootNodes.forEach((node) => {
-            connectedNodes.extend(node.getConnectedNodes());
+            connectedNodes.extend(node.getConnectedNodes(strip));
         });
         return connectedNodes;
     }
 
     getStatistics() {
-        var connectedNodes = this.getConnectedNodes();
-        var disconnectedNodes = this.getDisconnectedNodes();
+        var connectedNodes = this.getConnectedNodes(true);
+        var disconnectedNodes = this.getDisconnectedNodes(true);
 
         return {
             connectedNodes: connectedNodes.length,
@@ -147,15 +147,20 @@ class Node {
     }
 
     /* Adds an edge to another node */
-    addEdge(node) {
-        var edge = new Edge(this, node);
+    addEdge(node, analyzer) {
+        var edge = new Edge(this, node, analyzer);
         this.edges.push(edge);
     }
 
-    getConnectedNodes() {
+    getConnectedNodes(strip) {
         var connectedNodes = [];
         this.edges.forEach((edge) => {
-            connectedNodes.push(edge.callee);
+            if (strip) {
+                connectedNodes.push(edge.callee.functionData);    
+            } else {
+                connectedNodes.push(edge.callee);
+            }
+            
             connectedNodes.extend(edge.callee.getConnectedNodes());
         })
         return connectedNodes;
@@ -176,7 +181,7 @@ class Node {
      */
     addToDotify(dotty) {
         this.edges.forEach((edge) => {
-            dotty.addEdge(this.__str__(), edge.callee.__str__());
+            dotty.addEdge(this.__str__(), edge.callee.__str__(), {label: edge.analyzer});
             edge.callee.addToDotify(dotty);
         });
     }

@@ -28,7 +28,7 @@ let runOptions = {
     entry: "index.html",
     destination: null,
     verbose: false,
-    logfile: "lacuna_log.json",
+    logfile: "lacuna.log",
     timeout: null,
     olevel: 0,
     force: false
@@ -75,7 +75,29 @@ verifyRunOptions(runOptions)
 
         // RUN
         try {
-            lacunizer.run(runOptions);
+            var { callGraph, analyzerResults } = lacunizer.run(runOptions);
+
+            /* built log file */
+            var lacuna_log = {
+                runDate: new Date(),
+                runOptions: runOptions,
+                analyzerResults: analyzerResults,
+                graphStats: callGraph.getStatistics(),
+                deadFunctions: callGraph.getDisconnectedNodes(),
+                aliveFunctions: callGraph.getConnectedNodes(),
+                allFunctions: callGraph.nodes,
+                // files: callGraph.rootNodes
+            };
+            
+            /* write log */
+            var logPath = path.join(runOptions.directory, runOptions.logfile);
+            fs.writeFileSync(logPath, JSON.stringify(lacuna_log, null, 4), 'utf8');
+
+            var DOTLogPath = logPath + ".dot";
+            fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
+
+            
+            
         } catch (error) {
             console.log("Catch run");
             console.log(error);
