@@ -2,4 +2,3 @@ node_modules
 example
 exceptions.log
 package-lock.json
-analyzers
