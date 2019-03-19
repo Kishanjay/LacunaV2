@@ -69,19 +69,19 @@ module.exports = function(scripts, html_file)
 
 	let functions_called = [];
 
-	// Retrieve all called functions
-	cg.edges.iter(function(caller, called)
+	// Retrieve all callee functions
+	cg.edges.iter(function(caller, callee)
 	{
-		if(called.type == 'NativeVertex')
+		if(callee.type == 'NativeVertex')
 		{
 			// We don't care about calls to native functions (e.g. Math.floor or Array.prototype.map).
 			return;
 		};
 
-		// Determine called.
-		let file = called.func.attr.enclosingFile;
-		let start = called.func.range[0];
-		let end = called.func.range[1];
+		// Determine callee.
+		let file = callee.func.attr.enclosingFile;
+		let start = callee.func.range[0];
+		let end = callee.func.range[1];
 
 		// Determine caller.
 		let caller_start, caller_end,
@@ -101,22 +101,22 @@ module.exports = function(scripts, html_file)
 		function equals(a)
 		{
 			return a.caller.file == caller_file && a.caller.range[0] == caller_start && a.caller.range[1] == caller_end &&
-			       a.called.file == file && a.called.range[0] == start && a.called.range[1] == end;
+			       a.callee.file == file && a.callee.range[0] == start && a.callee.range[1] == end;
 		}
 
 		// If it's not yet in there, put it in. (prevent duplicates)
 		if( ! functions_called.some(equals) )
 		{
 			let caller = { file: caller_file, range: [caller_start, caller_end] };
-			let called = { file: file, range: [start, end] };
+			let callee = { file: file, range: [start, end] };
 
 			caller = fix_entry(caller, scripts, html_file);
-			called = fix_entry(called, scripts, html_file);
+			callee = fix_entry(callee, scripts, html_file);
 
 			functions_called.push(
 			{
 				caller: caller,
-				called: called
+				callee: callee
 			});
 		}
 	});

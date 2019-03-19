@@ -10,6 +10,7 @@
  */
 
 const { Dotify, objectToDOT } = require("./dotify");
+const logger = require("./_logger");
 
 module.exports = class CallGraph {
     constructor(functions) {
@@ -32,6 +33,13 @@ module.exports = class CallGraph {
         }
     }
 
+    /** Creates a new node that we know is alive (unknown caller) */
+    addAliveNode(functionData, analyzer) {
+        var rootNodeFunctionData = { file: functionData.file, range: [null, null] };
+        var edge = this.addEdge({ caller: rootNodeFunctionData, callee: functionData }, analyzer);
+        return edge;
+    }
+
     /** Adds an edge between 2 functions
      * the edge param should contain {
      *  called: functionData,
@@ -39,10 +47,10 @@ module.exports = class CallGraph {
      * }
      */
     addEdge(edge, analyzer) {
-        var calleeNode = this.getNode(edge.called);
+        var calleeNode = this.getNode(edge.callee);
         var callerNode = this.getNode(edge.caller);
 
-        callerNode.addEdge(calleeNode, analyzer);
+        return callerNode.addEdge(calleeNode, analyzer);
     }
 
     /** Fetches the Node object based on the function data */
@@ -62,7 +70,7 @@ module.exports = class CallGraph {
             }
         };
 
-        logger.warning("Could not find node");
+        logger.warn("Could not find node", functionData);
         return null;
     }
 
@@ -71,12 +79,16 @@ module.exports = class CallGraph {
      * (meaning that there exists a node for that file)
      */
     rootNodeExists(functionData) {
+        return (this.getRootNode(functionData) != null)
+    }
+
+    getRootNode(functionData) {
         for (var i = 0; i < this.rootNodes.length; i++){
             if (this.rootNodes[i].functionData.file == functionData.file) {
-                return true;
+                return this.rootNodes[i];
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -133,6 +145,30 @@ module.exports = class CallGraph {
             files: this.rootNodes.length
         }
     }
+
+    /** Getters */
+    getNodes(strip) {
+        var nodes = [];
+        this.nodes.forEach((node) => {
+            if (strip) {
+                nodes.push(node.functionData);
+            } else {
+                nodes.push(node);
+            }
+        });
+        return nodes;
+    }
+    getRootNodes(strip) {
+        var rootNodes = [];
+        this.rootNodes.forEach((node) => {
+            if (strip) {
+                rootNodes.push(node.functionData);
+            } else {
+                rootNodes.push(node);
+            }
+        });
+        return rootNodes;
+    }
 }
 
 
@@ -146,10 +182,20 @@ class Node {
         this.functionData = functionData; // the original function data
     }
 
+    setAlive() {
+
+    }
+
     /* Adds an edge to another node */
     addEdge(node, analyzer) {
         var edge = new Edge(this, node, analyzer);
         this.edges.push(edge);
+
+        var returnEdge = {
+            caller: edge.caller.functionData,
+            callee: edge.callee.functionData
+        }
+        return returnEdge;
     }
 
     getConnectedNodes(strip) {
@@ -180,9 +226,10 @@ class Node {
      * @param {Dotify} dotty 
      */
     addToDotify(dotty) {
+        /** add edges from self to all children to dotify */
         this.edges.forEach((edge) => {
             dotty.addEdge(this.__str__(), edge.callee.__str__(), {label: edge.analyzer});
-            edge.callee.addToDotify(dotty);
+            edge.callee.addToDotify(dotty); /** recursively add the edges of child to dotify */
         });
     }
 

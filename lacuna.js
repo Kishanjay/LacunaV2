@@ -75,27 +75,26 @@ verifyRunOptions(runOptions)
 
         // RUN
         try {
-            var { callGraph, analyzerResults } = lacunizer.run(runOptions);
-
-            /* built log file */
-            var lacuna_log = {
-                runDate: new Date(),
-                runOptions: runOptions,
-                analyzerResults: analyzerResults,
-                graphStats: callGraph.getStatistics(),
-                deadFunctions: callGraph.getDisconnectedNodes(),
-                aliveFunctions: callGraph.getConnectedNodes(),
-                allFunctions: callGraph.nodes,
-                // files: callGraph.rootNodes
-            };
+            lacunizer.run(runOptions, (callGraph, analyzerResults) => {
+                logger.info(`Generating Lacuna output`);
+                var lacuna_log = { /* built log file */
+                    runDate: new Date(),
+                    runOptions: runOptions,
+                    analyzerResults: analyzerResults,
+                    graphStats: callGraph.getStatistics(),
+                    deadFunctions: callGraph.getDisconnectedNodes(true),
+                    aliveFunctions: callGraph.getConnectedNodes(true),
+                    allFunctions: callGraph.getNodes(true),
+                    files: callGraph.getRootNodes(true)
+                };
             
-            /* write log */
-            var logPath = path.join(runOptions.directory, runOptions.logfile);
-            fs.writeFileSync(logPath, JSON.stringify(lacuna_log, null, 4), 'utf8');
+                /* write log */
+                var logPath = path.join(runOptions.directory, runOptions.logfile);
+                fs.writeFileSync(logPath, JSON.stringify(lacuna_log, null, 4), 'utf8');
 
-            var DOTLogPath = logPath + ".dot";
-            fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
-
+                var DOTLogPath = logPath + ".dot";
+                fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
+            });
             
             
         } catch (error) {

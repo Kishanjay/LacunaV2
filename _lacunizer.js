@@ -26,7 +26,7 @@ const lacunaSettings = require("./_settings");
  * Fetches the analyser objects
  * Runs the analysers to complete the call-graph (create edges)
  */
-function run(runOptions) {
+function run(runOptions, callback) {
     var scripts = retrieveScripts(path.join(runOptions.directory, runOptions.entry));
     var functions = retrieveFunctions(scripts);
     
@@ -34,24 +34,45 @@ function run(runOptions) {
     var analyzers = retrieveAnalyzers(runOptions.analyzer);
     
     var analyzerResults = [];
+    var analyzersCompleted = {};
     analyzers.forEach((analyzer) => {
+        analyzersCompleted[analyzer.name] = false;
+
         try {
-            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
-                console.log(edges);
-                logger.verbose(`Analyzer[${analyzer.name}] finished`);
+            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {                
                 analyzerResults.push({
                     analyzer: analyzer.name,
                     edges: edges
                 });
+
+                analyzerCompleted(analyzer);
             });
         } catch (error) {
+            logger.warn(`Analyzer[${analyzer.name}] failed`);
+
             console.log("Catch analyzer");
             console.log(error);
-        }     
+            
+            analyzerCompleted(analyzer);
+        } finally { // check if we're finished
+            
+        }    
     });
 
-    return { callGraph, analyzerResults };
+    /** marks an analyzer as completed, and checks if we're done */
+    function analyzerCompleted(analyzer) {
+        logger.verbose(`Analyzer[${analyzer.name}] finished`);
+        analyzersCompleted[analyzer.name] = true;
+
+        if (Object.keys(analyzersCompleted).length != analyzers.length) { return; }
+        for (const [key, value] of Object.entries(analyzersCompleted)) {
+            if (!value) { return; }
+        }
+        logger.verbose(`CallGraph creation completed`);
+        callback(callGraph, analyzerResults);
+    }
 }
+
 
 
 /**

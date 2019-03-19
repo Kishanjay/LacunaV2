@@ -52,7 +52,7 @@ class Dotify {
     addEdge(node1, node2, options) {
         this.edges.push({
             node1: node1,
-            node2, options,
+            node2, node2,
             options: options
         });
     }
@@ -73,7 +73,8 @@ class Dotify {
     /** returns the representing DOT string */
     getDOT() {
         var obj = this.getObject();
-        return objectToDOT(obj);
+        var DOT = objectToDOT(obj);
+        return DOT;
     }
 }
 

@@ -10,6 +10,15 @@ JS files and all inline JS scripts will be considered for optimization.
 
 __Thus all files that are not referenced by the entry file will be skipped__
 
+### How-to-run
+`npm install`
+
+`npm --prefix ./analyzers/static install ./analyzers/static`
+`npm --prefix ./analyzers/dynamic install ./analyzers/dynamic`
+`npm --prefix ./analyzers/nativecalls install ./analyzers/nativecalls`
+`npm --prefix ./analyzers/wala_full install ./analyzers/wala_full`
+`npm --prefix ./analyzers/wala_single install ./analyzers/wala_single`
+
 ## Runtime options
 
 | Long          | Short | Description                                                    | Default                  |
