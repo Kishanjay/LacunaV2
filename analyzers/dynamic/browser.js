@@ -5,9 +5,6 @@
 
 'use strict';
 
-// var phantomjs = require('phantomjs-prebuilt-that-works');
-// var selenium = require('selenium-webdriver');
-// var { logging } = require('selenium-webdriver');
 const puppeteer = require('puppeteer');
 const path = require("path");
 
