@@ -1,12 +1,28 @@
 /**
- * The extendible callgraph of all functions
- * A callgraph has nodes: functions
+ * @author Kishan Nirghin
+ * 
+ * @description Callgraph of functions relations
+ * The extendible callgraph that should represent all functioncalls of a project
+ * The nodes: being the functions
  * and edges: caller-callee relationships
  * 
  * The rootNodes are nodes that are autoexecuted at the start
  * for now these are the files that contain the JS functions.
  * e.g. whenever a function is executed from a JS file, the function will become
  * a node, and that file that triggered the execution will become a rootNode.
+ * 
+ * The following params are used throughout this file
+ * @param functionData {
+ *    file: {String},
+ *    range: [{Number}, {Number}]
+ *  }
+ *  thus all data that represent a function. Note that for rootNodes the ranges
+ *  are both null.
+ * 
+ * @param stripObject {Boolean}
+ *  To deal with circular structures (which any graph probably suffers from),
+ *  the strip option will remove any references to other objects, and rather
+ *  uses the raw data.
  */
 
 const { Dotify, objectToDOT } = require("./dotify");
@@ -16,47 +32,54 @@ module.exports = class CallGraph {
     constructor(functions) {
         this.nodes = [];
         this.edges = [];
-        this.rootNodes = []; /* auto executed, not really functions */
+        this.rootNodes = []; /* auto executed, not real functions */
 
         functions.forEach((functionData) => {
             this.addNode(functionData);
         })
     }
 
-    /** Creates and adds new node to callgraph */
+    /** 
+     * Creates a new node and adds it to the callGraph
+     * Also creates a rootNode if necessary
+     */
     addNode(functionData) {
         this.nodes.push(new Node(functionData));
 
         /* Check if a rootNode should be added */
-        if (!this.rootNodeExists(functionData)) {
-            this.rootNodes.push(new Node({file: functionData.file, type: 'rootNode', range: [null, null]}));      
+        var rootNode = { file: functionData.file, type: 'rootNode', range: [null, null] };
+        if (!this.rootNodeExists(rootNode)) {
+            this.rootNodes.push(new Node(rootNode));      
         }
     }
 
-    /** Creates a new node that we know is alive (unknown caller) */
+    /**
+     * Creates a new alive node with an unknown caller
+     */
     addAliveNode(functionData, analyzer) {
         var rootNodeFunctionData = { file: functionData.file, range: [null, null] };
-        var edge = this.addEdge({ caller: rootNodeFunctionData, callee: functionData }, analyzer);
+        var edge = this.addEdge(rootNodeFunctionData, functionData, analyzer, true);
         return edge;
     }
 
-    /** Adds an edge between 2 functions
-     * the edge param should contain {
-     *  called: functionData,
-     *  caller: functionData
-     * }
+    /** 
+     * Wrapper function to add an edge to a node
+     * It fetches both nodes a adds a newly created edge to the caller
      */
-    addEdge(edge, analyzer) {
-        var calleeNode = this.getNode(edge.callee);
-        var callerNode = this.getNode(edge.caller);
+    addEdge(functionDataCaller, functionDataCallee, analyzer, stripObject) {
+        var caller = this.getNode(functionDataCaller);
+        var callee = this.getNode(functionDataCallee);
 
-        return callerNode.addEdge(calleeNode, analyzer);
+        return caller.addEdge(callee, analyzer, stripObject);
     }
 
-    /** Fetches the Node object based on the function data */
+    /** 
+     * Fetches an existing nodeObject given its functionData
+     * Also supports rootNodes, as its range[0,1] will be null
+     */
     getNode(functionData) {
         var nodeList = this.nodes;
-        if (functionData.range[0] == null) {
+        if (functionData.range[0] == null && functionData.range[1] == null) {
             nodeList = this.rootNodes;
         }
 
@@ -74,15 +97,13 @@ module.exports = class CallGraph {
         return null;
     }
 
-    /**
-     * Checks whether there already exists a rootNode for the given functionData
-     * (meaning that there exists a node for that file)
+    /** 
+     * TODO: Should be replaced with getNode
      */
-    rootNodeExists(functionData) {
-        return (this.getRootNode(functionData) != null)
-    }
-
     getRootNode(functionData) {
+        if (functionData.range[0] != null || functionData.range[1]) {
+            logger.warn("Invalid rootnode", functionData);
+        }
         for (var i = 0; i < this.rootNodes.length; i++){
             if (this.rootNodes[i].functionData.file == functionData.file) {
                 return this.rootNodes[i];
@@ -90,6 +111,15 @@ module.exports = class CallGraph {
         }
         return null;
     }
+
+    /**
+     * Returns a Boolean on whether the rootNode already exists
+     */
+    rootNodeExists(functionData) {
+        return (this.getRootNode(functionData) != null)
+    }
+
+    
 
     /**
      * Prints the callgraph in a pseudo readable/interpretable format
@@ -100,19 +130,27 @@ module.exports = class CallGraph {
         });
     }
 
-    /** Gets the DOT representation of the graph data */
+    /** 
+     * Gets the DOT representation of the current callgraph
+     */
     getDOT() {
         var dotty = new Dotify("digraph", "lacunaCG"); 
+
+        /* the expanding list of considered nodes => prevents infinite loops */
+        var consideredNodes = [];
         this.rootNodes.forEach((node) => {
-            node.addToDotify(dotty);
+            node.addToDotify(dotty, consideredNodes);
         });
 
         return dotty.getDOT();
     }
 
-    /** The nodes that are not called by any node AKA dead functions */
-    getDisconnectedNodes(strip) {
-        var connectedNodes = this.getConnectedNodes(strip);
+    /** 
+     * Fetches the nodes that are not called by any other node
+     * (Dead functions).
+     */
+    getDisconnectedNodes(stripObject) {
+        var connectedNodes = this.getConnectedNodes(stripObject);
 
         var disconnectedNodes = [];
         this.nodes.forEach((node) => {
@@ -124,16 +162,26 @@ module.exports = class CallGraph {
         return disconnectedNodes;
     }
 
-    /** All nodes (except the rootNodes) that have been called */
-    getConnectedNodes(strip) {
+    /** 
+     * Fetches all nodes (except the rootNodes) that have been called
+     * Starts from the rootNodes and works downwards.
+     */
+    getConnectedNodes(stripObject) {
         var connectedNodes = [];
 
-        this.rootNodes.forEach((node) => {
-            connectedNodes.extend(node.getConnectedNodes(strip));
+        this.rootNodes.forEach((childNode) => {
+            var node = stripObject ? childNode.functionData : childNode;
+            if (connectedNodes.includes(node)) { return; }
+
+            // if (addRootNodes) { connectedNodes.push(node); }
+            childNode.addConnectedNodes(connectedNodes, stripObject);
         });
         return connectedNodes;
     }
 
+    /**
+     * Fetches some base stats about the current callgraph
+     */
     getStatistics() {
         var connectedNodes = this.getConnectedNodes(true);
         var disconnectedNodes = this.getDisconnectedNodes(true);
@@ -146,26 +194,22 @@ module.exports = class CallGraph {
         }
     }
 
-    /** Getters */
-    getNodes(strip) {
+    /**
+     * Getters
+     */
+    getNodes(stripObject) {
         var nodes = [];
         this.nodes.forEach((node) => {
-            if (strip) {
-                nodes.push(node.functionData);
-            } else {
-                nodes.push(node);
-            }
+            if (stripObject) { node = node.functionData; }
+            nodes.push(node);
         });
         return nodes;
     }
-    getRootNodes(strip) {
+    getRootNodes(stripObject) {
         var rootNodes = [];
         this.rootNodes.forEach((node) => {
-            if (strip) {
-                rootNodes.push(node.functionData);
-            } else {
-                rootNodes.push(node);
-            }
+            if (stripObject) { node = node.functionData; }
+            rootNodes.push(node);
         });
         return rootNodes;
     }
@@ -173,43 +217,56 @@ module.exports = class CallGraph {
 
 
 /** ============================================================================
- *  SEPERATOR
+ *  CLASS SEPERATOR
  * ========================================================================== */
-/** represents a function */
+
+
+/**
+ * @description The representation of a function within this callgraph
+ */
 class Node {
     constructor(functionData) {
-        this.edges = []; // edges to other nodes (one-way directional)
-        this.functionData = functionData; // the original function data
+        this.edges = []; // edges to other nodes (directional/one-way edges)
+        this.functionData = functionData; // preserves original function data
     }
 
-    setAlive() {
-
-    }
-
-    /* Adds an edge to another node */
-    addEdge(node, analyzer) {
+    /**
+     * Adds an edge to another node  
+     * 
+     * NOTE multiple edges can exist between the same nodes
+     */
+    addEdge(node, analyzer, stripObject) {
         var edge = new Edge(this, node, analyzer);
         this.edges.push(edge);
 
-        var returnEdge = {
-            caller: edge.caller.functionData,
-            callee: edge.callee.functionData
+        var caller = edge.caller;
+        var callee = edge.callee;
+
+        if (stripObject) {
+            caller = caller.functionData;
+            callee = callee.functionData;
         }
-        return returnEdge;
+        return {
+            caller,
+            callee
+        }
     }
 
-    getConnectedNodes(strip) {
-        var connectedNodes = [];
+    /**
+     * Adds all nodes connected to this node to the connectedNodes array
+     * doesnt return anything as it stores the result in the array.
+     */
+    addConnectedNodes(connectedNodes, stripObject) {
         this.edges.forEach((edge) => {
-            if (strip) {
-                connectedNodes.push(edge.callee.functionData);    
-            } else {
-                connectedNodes.push(edge.callee);
-            }
+            var callee = edge.callee;
+            if (stripObject) { callee = callee.functionData; }
+
+            /* If we've encountered that node before, skip */
+            if (connectedNodes.includes(callee)) { return; }
             
-            connectedNodes.extend(edge.callee.getConnectedNodes());
+            connectedNodes.push(callee);
+            edge.callee.addConnectedNodes(connectedNodes, stripObject);
         })
-        return connectedNodes;
     }
 
     /** Prints the current node and its children */
@@ -222,14 +279,21 @@ class Node {
     }
 
     /**
-     * Adds the edges with its children to the dotify object
-     * @param {Dotify} dotty 
+     * Add all self to child relations to the dotify object
+     * 
+     * @param {Dotify} dotty
+     * Dotty object that will store all the object data
      */
-    addToDotify(dotty) {
-        /** add edges from self to all children to dotify */
+    addToDotify(dotty, consideredNodes) {
+        /* Prevent infinite loops */
+        if (consideredNodes.includes(this)) { return; }
+        consideredNodes.push(this);
+
         this.edges.forEach((edge) => {
-            dotty.addEdge(this.__str__(), edge.callee.__str__(), {label: edge.analyzer});
-            edge.callee.addToDotify(dotty); /** recursively add the edges of child to dotify */
+            dotty.addEdge(this.__str__(), edge.callee.__str__(), { label: edge.analyzer });
+            
+            /* Recursively add grand-child relations */
+            edge.callee.addToDotify(dotty, consideredNodes); 
         });
     }
 
@@ -241,7 +305,7 @@ class Node {
 
 
 /** ============================================================================
- *  SEPERATOR
+ *  CLASS SEPERATOR
  * ========================================================================== */
 /** represents a caller-callee relationship (directional edge) */
 class Edge {

@@ -1,5 +1,10 @@
 /**
- * Some prototype extensions. Add these to js PLZ...
+ * @author Kishan Nirghin
+ * 
+ * @description Things that would make javascript slightly better
+ * Mostly copied from other languages that do have these features
+ * 
+ * @note This extension extends existing prototypes
  */
 
 String.prototype.insert = function (index, string) {
@@ -18,7 +23,6 @@ String.prototype.splice = function(index, count, add) {
   }
   return this.slice(0, index) + (add || "") + this.slice(index + count);
 }
-
 
 Object.prototype.extend = function (obj) {
   for (var key in obj) {

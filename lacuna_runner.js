@@ -30,7 +30,7 @@ function run(runOptions){
     verifyRunOptions(runOptions)
         .catch((verifyError) => { process.exit(1); })
         .then(startLacuna)
-        .catch((error) => { return logger.error(error); });
+        .catch((error) => { logger.error(error); });
 }
 
 /**
@@ -101,8 +101,8 @@ async function verifyRunOptions(runOptions) {
     if (!runOptions.analyzer || runOptions.analyzer.length <= 0) {
         throw logger.error("Invalid analyzer: " + runOptions.analyzer);
     }
-    runOptions.analyzer.forEach((analyzer) => {
-        var analyzerPath = path.join(lacunaSettings.ANALYZERS_DIR, analyzer) + ".js";
+    runOptions.analyzer.forEach((analyzer) => {   
+        var analyzerPath = path.join(__dirname, lacunaSettings.ANALYZERS_DIR, analyzer) + ".js";
         if (!fs.existsSync(analyzerPath)) {
             throw logger.error("Invalid analyzer: " + analyzer);
         }

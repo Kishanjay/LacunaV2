@@ -23,7 +23,7 @@ module.exports = function()
 		// edges contains an array with the following object:
 		// {caller: {file, start, end}, called: {file, start, end} }
 		edges.forEach(function (edge) {
-			callGraph.addEdge(edge, "static");
+			callGraph.addEdge(edge.caller, edge.callee, "static");
 		});
 
 		callback(edges);

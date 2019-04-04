@@ -20,7 +20,7 @@ module.exports = function()
 		// For each function
 		edges.forEach(function(edge)
 		{
-			callGraph.addEdge(edge, "nativecalls");
+			callGraph.addEdge(edge.caller, edge.callee, "nativecalls");
 		});
 
 		callback(edges);

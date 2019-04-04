@@ -39,31 +39,30 @@ function run(runOptions, callback) {
         analyzersCompleted[analyzer.name] = false;
 
         try {
-            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {                
-                analyzerResults.push({
-                    analyzer: analyzer.name,
-                    edges: edges
-                });
-
-                analyzerCompleted(analyzer);
-            });
+            analyzer.object.run(runOptions, callGraph, scripts, onAnalyzerDone);
         } catch (error) {
             logger.warn(`Analyzer[${analyzer.name}] failed`);
+            console.log(error);   
+        } finally {
+            /* Also does the callback when all analyzers are done */
+            completeAnalyzer(analyzer);
+        }
 
-            console.log("Catch analyzer");
-            console.log(error);
-            
-            analyzerCompleted(analyzer);
-        } finally { // check if we're finished
-            
-        }    
+        /* Store the acquired results from each analyzer */
+        function onAnalyzerDone(edges) {
+            analyzerResults.push({
+                analyzer: analyzer.name,
+                edges: edges
+            });
+        } 
     });
 
-    /** marks an analyzer as completed, and checks if we're done */
-    function analyzerCompleted(analyzer) {
-        logger.verbose(`Analyzer[${analyzer.name}] finished`);
+    /* marks an analyzer as completed, and checks if we're done */
+    function completeAnalyzer(analyzer) {
+        logger.info(`Analyzer[${analyzer.name}] finished`);
         analyzersCompleted[analyzer.name] = true;
 
+        /* Only do callback when each analyzer either completed or failed */
         if (Object.keys(analyzersCompleted).length != analyzers.length) { return; }
         for (const [key, value] of Object.entries(analyzersCompleted)) {
             if (!value) { return; }
@@ -130,8 +129,10 @@ function retrieveAnalyzers(analyzerNames) {
 
     analyzerNames.forEach((analyzerName) => {
         var analyzerRequirePath = "./" + path.join(lacunaSettings.ANALYZERS_DIR, analyzerName);
-        var Analyzer = require(analyzerRequirePath);
-        analyzers.push({ name: analyzerName, object: new Analyzer() });
+        try {
+            var Analyzer = require(analyzerRequirePath);
+            analyzers.push({ name: analyzerName, object: new Analyzer() });
+        } catch (e) { logger.error('Cannot find ' + analyzerRequirePath); }
     });
 
     return analyzers;

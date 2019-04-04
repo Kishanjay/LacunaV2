@@ -20,7 +20,9 @@ module.exports = function()
 	{
 		// Start the analyzation process. Since this runs async, use a callback.
 		dynamic_analyzer(runOptions.directory, runOptions.entry, null, scripts, function (aliveFunctions) {
+			/* Since Lacuna focusses on edges, we should create edges */
 			var edges = [];
+
 			aliveFunctions.forEach((functionData) => {
 				var edge = callGraph.addAliveNode(functionData, 'dynamic');
 				edges.push(edge);
