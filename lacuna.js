@@ -39,8 +39,8 @@ try {
     runOptions.extend(argv);
 } catch (exception) { throw logger.error(exception); }
 if (!runOptions) { throw logger.error("Invalid runOptions"); }
+logger.silly("runOptions OK");
 
-try {
-    logger.silly("runOptions OK");
-    lacuna.run(runOptions);
-} catch (e) { console.log(e); }
+/* Actual startup of lacuna */
+try { lacuna.run(runOptions, function(log) { }); }
+catch (e) { console.log(e); }

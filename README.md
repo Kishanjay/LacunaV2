@@ -27,7 +27,7 @@ __Thus all files that are not referenced by the entry file will be skipped__
 | --analyzer    | -a    | Specify analyzers (multiple allowed, space separated).         | <REQUIRED>               |
 | --olevel      | -o    | Optimization level                                             | 0                        |
 | --entry       | -e    | The entry file, where the JS scripts should be gathered from.  | index.html               |
-| --destination | -d    | Perform changes in a copy of the sourceFolder.                 | <sourceFolder>_lacunized |
+| --destination | -d    | Perform changes in a copy of the sourceFolder.                 | <sourceFolder>           |
 | --logfile     | -l    | Logs of Lacuna execution.                                      | lacuna.log               |
 | --force       | -f    | Force continuing                                               | false                    |
 
@@ -81,12 +81,9 @@ as well as the inline JS scripts; after which they will be considered for
 optimization.
 
 #### Destination
-By default Lacuna will preserve the original sourceFolder by outputting the 
-optimized version in <sourceFolder>_lacunized.
-
-By setting the destination option the destination folder can be changed.
-_Note: setting the destinationFolder to the sourceFolder will overwrite the
-existing application_
+By default Lacuna will overwrite the original sourceFolder (IF the optimization
+level is > 0). Setting this option will change the destination folder and 
+preserve the original sourceCode.
 
 #### Logfile
 Where the output of Lacuna will be stored. By default in `lacuna.log`

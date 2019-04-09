@@ -41,11 +41,11 @@ function run(runOptions, callback){
 function startLacuna(runOptions, callback) {
     logger.debug("runOptions verified");
 
-    /* If a different destination is chosen, copy current directory content */
+    /* If a destination is chosen (that isnt sourceFolder) copy dir content */
     if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
         fs.copySync(runOptions.directory, runOptions.destination);
         
-        // the rest of the script will be using this param
+        /* the rest of the script will be using this param */
         runOptions.directory = runOptions.destination;
     }
 
@@ -55,12 +55,11 @@ function startLacuna(runOptions, callback) {
 
     try {
         lacunizer.run(runOptions, (callGraph, analyzerResults) => {            
-            logger.debug(`Generating logfile`);
             var lacuna_log = { /* built log file */
                 runDate: new Date(),
                 runOptions: runOptions,
                 graphStats: callGraph.getStatistics(),
-                // analyzerResults: analyzerResults,
+                // analyzerResults: analyzerResults, // turn off for efficiency
                 deadFunctions: callGraph.getDisconnectedNodes(true),
                 aliveFunctions: callGraph.getConnectedNodes(true),
                 allFunctions: callGraph.getNodes(true),
@@ -74,7 +73,8 @@ function startLacuna(runOptions, callback) {
             var DOTLogPath = logPath + ".dot";
             fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
 
-            logger.verbose(`Lacuna finished`);
+            logger.info(`Lacuna finished.\See results in: ${logPath}`);
+
             callback(lacuna_log);
         });   
         
@@ -128,7 +128,11 @@ async function verifyRunOptions(runOptions) {
     if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
         throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
     }
-    if (runOptions.olevel > 0) { 
+    if (runOptions.olevel == 0 && runOptions.destination) {
+        logger.warn("runOptions.destination useless for optimizationLevel[0]");
+        runOptions.destination = null;
+    }
+    if (runOptions.olevel >= 1 && !runOptions.destination) {
         if (!runOptions.force) { // Show a warning before Lacuna starts modifying files
             var answer = await prompt(`Warning Lacuna will permanently modify "${runOptions.directory}", are you sure you want to continue?`);
             if (!answer || answer != true) { process.exit(1); }        

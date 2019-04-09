@@ -27,6 +27,7 @@
 
 const { Dotify, objectToDOT } = require("./dotify");
 const logger = require("./_logger");
+const path = require("path");
 
 module.exports = class CallGraph {
     constructor(functions) {
