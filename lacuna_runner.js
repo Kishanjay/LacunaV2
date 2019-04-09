@@ -73,7 +73,7 @@ function startLacuna(runOptions, callback) {
             var DOTLogPath = logPath + ".dot";
             fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
 
-            logger.info(`Lacuna finished.\See results in: ${logPath}`);
+            logger.info(`Lacuna finished.\nSee results in: ${logPath}`);
 
             callback(lacuna_log);
         });   

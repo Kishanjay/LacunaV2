@@ -68,7 +68,6 @@ Lacuna supports multiple levels of caution.
 - 1: Replace the function body with a lazy loading mechanism
 - 2: Remove the function body
 - 3: Replace the function definition with null
-- 4: Remove the function reference entirely
 
 Since there is no guarantee that Lacuna will not yield false positives e.g.
 that it thinks a function that is really alive is dead, removing the functions

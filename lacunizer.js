@@ -21,27 +21,88 @@ const JsEditor = require("./js_editor"),
 const lacunaSettings = require("./_settings");
 
 /**
- * Retrieve all scripts and functions of the given project
- * Creates an empty call-graph given the prior
- * Fetches the analyser objects
- * Runs the analysers to complete the call-graph (create edges)
+ * Does the actual execution
  */
-function run(runOptions, callback) {
+function run(runOptions, onFinish) {
+    /* Creates the complete callgraph using the analyzers */
+    createCompleteCallGraph(runOptions, (callGraph, analyzerResults) => {
+
+        /* After the callgraph is completed, remove the dead functions from their files */
+        optimizeFiles(callGraph.getDisconnectedNodes(true), runOptions.olevel);
+
+        /* Once that is finished, do the callback */
+        onFinish(callGraph, analyzerResults);
+    });
+}
+
+/**
+ * Removes deadfunctions (partially) from their corresponding files
+ */
+function optimizeFiles(deadFunctions, optimizationLevel) {
+    if (optimizationLevel == 0) { return; }
+
+    var deadFunctionsByFile = groupDeadFunctionsByFile(deadFunctions);
+
+    for(var file in deadFunctionsByFile) { 
+        if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
+        
+        var deadFunctions = deadFunctionsByFile[file];
+        removeFunctionsFromFile(deadFunctions, file);
+    }
+
+}
+
+function removeFunctionsFromFile(functions, file) {
+    var extension = path.extname(file);
+
+    if (!([".ts", ".js"].includes(extension))) {
+        return logger.warn(`Could not optimize ${file}`);
+    }
+
+    var jse = new JsEditor().loadFile(file);
+    functions.forEach(deadFunction => {
+        // jse.replaceFunction(deadFunction, "console.log('aaa')");
+        jse.removeFunction(deadFunction);
+    });
+    
+    jse.saveFile();
+}
+
+
+/**
+ * The functionality that creates the entire callGraph
+ * Part 1: it creates the empty callgraph with only the nodes (which represent
+ * functions) by fetching all script data from the entry file; from which it 
+ * will fetch all functions and insert these as nodes in the callgraph.
+ * 
+ * Part 2: it will run every chosen analyzer on the sourceFolder that will 
+ * mark the different nodes as alive by creating edges in the callgraph.
+ * 
+ * Part 3: once every analyzer is done, we can assume that the callgraph is
+ * completed.
+ * 
+ * @returns callback(onCallGraphComplete)
+ * @param callGraph contains the entire callgraph object
+ * @param analyzerResults contains information about which edges were 
+ * drawn by which analyzer
+ */
+function createCompleteCallGraph(runOptions, onCallGraphComplete) {
+    /* Part 1: creating the edgeless callgraph, with every function as a node */
     var scripts = retrieveScripts(path.join(runOptions.directory, runOptions.entry));
     var functions = retrieveFunctions(scripts);
-    
     logger.debug(`Inserting [${functions.length}/${scripts.length}] nodes`);
     var callGraph = new CallGraph(functions);
-    var analyzers = retrieveAnalyzers(runOptions.analyzer);
-    
+
+    /* Part 2: running every analyzer to create edges in the callgraph */
     var analyzerResults = [];
+    var analyzers = retrieveAnalyzers(runOptions.analyzer);
     var analyzersCompleted = {};
     analyzers.forEach((analyzer) => {
         analyzersCompleted[analyzer.name] = false;
-
         try {
             analyzer.object.run(runOptions, callGraph, scripts, onAnalyzerDone);
-        } catch (error) {
+        }
+        catch (error) {
             logger.warn(`Analyzer[${analyzer.name}] failed`);
             console.log(error);   
             completeAnalyzer(analyzer);
@@ -59,9 +120,11 @@ function run(runOptions, callback) {
         } 
     });
 
-    /** 
+    /**
+     * Part 3: (not really part 3, more like a part 2+)
+     * 
      * Marks an analyzer as completed, and checks if we're done
-     * performs the callback when all analyzers are done
+     * performs the callback when all analyzers are done marking the callgraph
      */
     function completeAnalyzer(analyzer) {
         logger.info(`Analyzer[${analyzer.name}] finished`);
@@ -73,11 +136,22 @@ function run(runOptions, callback) {
             if (!value) { return; }
         }
         logger.verbose(`CallGraph creation completed`);
-        callback(callGraph, analyzerResults);
+        onCallGraphComplete(callGraph, analyzerResults);
     }
 }
 
+function groupDeadFunctionsByFile(deadFunctions) {
+    var files = {};
 
+    deadFunctions.forEach(deadFunction => {
+        var file = deadFunction.file;
+        if (!files.hasOwnProperty(file)) {
+            files[file] = [];
+        }
+        files[file].push(deadFunction);
+    })
+    return files;
+}
 
 /**
  * Retrieves the functions from javascript
@@ -128,8 +202,12 @@ function retrieveScripts(entryFile) {
 }
 
 /**
- * Retrieves the analyzer classes
+ * Retrieves the analyzer objects
+ * The analyzers are created as classes, this function will map the analyzer 
+ * names to a corresponding object of the analyzer.
+ * 
  * @param {*} analyzerNames 
+ * @returns [{name: <String>, object: <AnalyzerObject>}]
  */
 function retrieveAnalyzers(analyzerNames) {
     var analyzers = [];

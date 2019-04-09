@@ -23,6 +23,7 @@ module.exports = class JsEditor {
     loadSource(source, filePath = null) {
         this.source = this.originalSource = source;
         this.filePath = filePath;
+        this.offset = 0;
 
         return this;
     }
@@ -30,6 +31,7 @@ module.exports = class JsEditor {
     loadFile(filePath) {
         this.filePath = filePath;
         this.source = this.originalSource = fs.readFileSync(filePath).toString();
+        this.offset = 0;
 
         return this;
     }
@@ -44,6 +46,7 @@ module.exports = class JsEditor {
                     functionData.push({
                         type: node.type,
                         range: node.range,
+                        bodyRange: node.body.range,
                         file: this.filePath,
                         index: index++
                     });
@@ -54,6 +57,22 @@ module.exports = class JsEditor {
         return functionData;
     }
 
+    replaceFunction(functionData, replacement) {
+        var functionBodyLength = functionData.bodyRange[1] - functionData.bodyRange[0] - 2;
+        var startIndex = functionData.bodyRange[0] + 1 + this.offset;
+        this.source = this.source.splice(startIndex, functionBodyLength, replacement);
+
+        this.offset += replacement.length - functionBodyLength;
+    }
+
+    removeFunction(functionData) {
+        var replacement = "null;";
+        var functionLength = functionData.range[1] - functionData.range[0];
+        this.source = this.source.splice(functionData.range[0] + this.offset, functionLength, replacement);
+
+        this.offset += replacement.length - functionLength;
+    }
+
 
     /**
      * Note: this function should only be called when its the js file that gets
@@ -61,10 +80,10 @@ module.exports = class JsEditor {
      */
     saveFile() {
         if(this.filePath == null) {
-			return console.log("js_editor save error: No file loaded");
+			return logger.error("js_editor save error: No file loaded");
         }
         if (path.extname(this.filePath) != ".js") {
-            return console.log("js_editor save error: Invalid file");
+            return logger.error("js_editor save error: Invalid file");
         }
 		fs.writeFileSync( this.filePath, this.source );
     }

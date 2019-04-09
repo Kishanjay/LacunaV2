@@ -11,6 +11,7 @@ const cheerio = require("cheerio"),
     path = require("path");
 
 VALID_JS_TYPES = ['text/javascript', 'application/javascript', 'application/ecmascript', 'text/ecmascript'];
+
 module.exports = class HTMLEditor {
     loadFile(filePath) {
         this.filePath = filePath;
