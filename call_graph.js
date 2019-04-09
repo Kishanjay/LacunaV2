@@ -44,6 +44,9 @@ module.exports = class CallGraph {
      * Also creates a rootNode if necessary
      */
     addNode(functionData) {
+        if (functionData.range[0] == null || functionData.range[1] == null) {
+            logger.warn("rootNodes should be added automatically");
+        }
         this.nodes.push(new Node(functionData));
 
         /* Check if a rootNode should be added */
@@ -79,7 +82,10 @@ module.exports = class CallGraph {
      */
     getNode(functionData) {
         var nodeList = this.nodes;
-        if (functionData.range[0] == null && functionData.range[1] == null) {
+        if (functionData.range[0] == null || functionData.range[1] == null) {
+            if (!functionData.range[0] == null && functionData.range[1] == null) {
+                logger.warn("Invalid node");
+            }
             nodeList = this.rootNodes;
         }
 
@@ -227,6 +233,7 @@ module.exports = class CallGraph {
 class Node {
     constructor(functionData) {
         this.edges = []; // edges to other nodes (directional/one-way edges)
+        functionData.file = path.normalize(functionData.file);
         this.functionData = functionData; // preserves original function data
     }
 

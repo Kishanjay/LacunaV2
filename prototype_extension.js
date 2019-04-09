@@ -29,7 +29,3 @@ Object.prototype.extend = function (obj) {
     this[key] = obj[key];
   }
 }
-
-Array.prototype.extend = function (arr) {
-  arr.forEach(item => this.push(item));
-}

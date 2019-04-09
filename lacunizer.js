@@ -30,6 +30,7 @@ function run(runOptions, callback) {
     var scripts = retrieveScripts(path.join(runOptions.directory, runOptions.entry));
     var functions = retrieveFunctions(scripts);
     
+    logger.debug(`Inserting [${functions.length}/${scripts.length}] nodes`);
     var callGraph = new CallGraph(functions);
     var analyzers = retrieveAnalyzers(runOptions.analyzer);
     
@@ -43,8 +44,6 @@ function run(runOptions, callback) {
         } catch (error) {
             logger.warn(`Analyzer[${analyzer.name}] failed`);
             console.log(error);   
-        } finally {
-            /* Also does the callback when all analyzers are done */
             completeAnalyzer(analyzer);
         }
 
@@ -54,10 +53,16 @@ function run(runOptions, callback) {
                 analyzer: analyzer.name,
                 edges: edges
             });
+
+            logger.silly(`Analyzer[${analyzer.name}] aliveCount: ${edges.length}`)
+            completeAnalyzer(analyzer);
         } 
     });
 
-    /* marks an analyzer as completed, and checks if we're done */
+    /** 
+     * Marks an analyzer as completed, and checks if we're done
+     * performs the callback when all analyzers are done
+     */
     function completeAnalyzer(analyzer) {
         logger.info(`Analyzer[${analyzer.name}] finished`);
         analyzersCompleted[analyzer.name] = true;
@@ -85,6 +90,8 @@ function retrieveFunctions(scripts) {
         jse.loadSource(script.source, script.src);
         var functionsOfFile = jse.loadFunctionData();
         functions = functions.concat(functionsOfFile);
+
+        logger.silly(`[${functionsOfFile.length}] ${script.src}`);
     });
 
     return functions;

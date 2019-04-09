@@ -23,21 +23,23 @@ const fs = require('fs-extra'),
 const lacunaSettings = require("./_settings");
 
 
-function run(runOptions){
+function run(runOptions, callback){
     if (!runOptions) { throw logger.error("Invalid runOptions"); }
 
     /* Verify all runtime options */
     verifyRunOptions(runOptions)
         .catch((verifyError) => { process.exit(1); })
-        .then(startLacuna)
+        .then((runOptions) => {
+            startLacuna(runOptions, callback);
+        })
         .catch((error) => { logger.error(error); });
 }
 
 /**
  * Starting Lacuna (after the runOptions have been verified)
  */
-function startLacuna(runOptions) {
-    logger.verbose("runOptions verified");
+function startLacuna(runOptions, callback) {
+    logger.debug("runOptions verified");
 
     /* If a different destination is chosen, copy current directory content */
     if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
@@ -48,17 +50,17 @@ function startLacuna(runOptions) {
     }
 
     /* Startup lacuna */
-    logger.info("runOptions: " + JSON.stringify(runOptions));
-    logger.info("Starting Lacuna");
+    logger.debug("runOptions: " + JSON.stringify(runOptions));
+    logger.verbose("Starting Lacuna");
 
     try {
-        lacunizer.run(runOptions, (callGraph, analyzerResults) => {
-            logger.info(`Generating Lacuna output`);
+        lacunizer.run(runOptions, (callGraph, analyzerResults) => {            
+            logger.debug(`Generating logfile`);
             var lacuna_log = { /* built log file */
                 runDate: new Date(),
                 runOptions: runOptions,
                 graphStats: callGraph.getStatistics(),
-                analyzerResults: analyzerResults,
+                // analyzerResults: analyzerResults,
                 deadFunctions: callGraph.getDisconnectedNodes(true),
                 aliveFunctions: callGraph.getConnectedNodes(true),
                 allFunctions: callGraph.getNodes(true),
@@ -71,6 +73,9 @@ function startLacuna(runOptions) {
 
             var DOTLogPath = logPath + ".dot";
             fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
+
+            logger.verbose(`Lacuna finished`);
+            callback(lacuna_log);
         });   
         
     } catch (error) {

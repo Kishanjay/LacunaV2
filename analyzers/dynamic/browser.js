@@ -11,7 +11,7 @@ const path = require("path");
 const logger = require("../../_logger");
 
 const express = require('express');
-const app = express();
+var app = express();
 const port = 8012;
 
 module.exports = function()
@@ -20,14 +20,29 @@ module.exports = function()
 	this.page = null;
 	this.server = null;
 
-	this.min_required_time = 2000;
+	this.min_required_time = 3000;
 
 
 	this.load = function(dir, entry, timeout)
 	{
-		this.server = app.listen(port, () => logger.info(`Analyzer[Dynamic] server@${port}`));
+		// var urlDir = path.basename(dir);
+		// app.use("/" + urlDir, express.static(dir));
+		if (app && app._router){
+			var routes = app._router.stack;
+			routes.forEach((route, i, routes) => {
+				if (route.name == 'serveStatic') {
+					routes.splice(i, 1);
+				}
+			});
+		}
 		app.use(express.static(dir));
-		var url = "http://localhost:" + port + "/" + entry;
+		
+		
+		this.server = app.listen(port, () => {
+			logger.info(`Analyzer[dynamic] localhost:${port}`)
+			logger.debug(`Hosting: ${dir}/${entry}`);
+		});
+		var url = "http://localhost:" + port + "/" + entry; //"/" + urlDir +
 		
 		return new Promise(async (resolve, reject) => {
 			this.browser = await puppeteer.launch({headless: false}); // await
@@ -41,15 +56,13 @@ module.exports = function()
 			if (!timeout) { timeout = 0; }
 			// Wait at least min_required_time (browser startup time) seconds, more if we have a longer timeout.
 			setTimeout(() => {
-				resolve(consoleLogs);
+				try {
+					this.browser.close();
+					this.server.close(function () {
+						resolve(consoleLogs);
+					});
+				} catch (e) { console.log(e); }
 			}, Math.max(timeout, this.min_required_time));
 		});
 	};
-
-
-	this.stop = function()
-	{
-		this.browser.close();
-		this.server.close();
-	}
 };

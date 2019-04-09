@@ -121,9 +121,6 @@ module.exports = {
 
 			// Remove inserted script tag from the HTML source.
 			html.restore();
-
-			// Close the browser.
-			browser.stop();
 		}
 
 

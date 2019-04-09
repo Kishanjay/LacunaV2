@@ -37,16 +37,20 @@ module.exports = class JsEditor {
     loadFunctionData() {
         var functionData = [];
         var index = 0;
-        esprima.parse(this.source, { range: true }, (node) => {
-            if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
-                functionData.push({
-                    type: node.type,
-                    range: node.range,
-                    file: this.filePath,
-                    index: index++
-                });
-            }
-        });
+
+        try {
+            esprima.parse(this.source, { range: true }, (node) => {
+                if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
+                    functionData.push({
+                        type: node.type,
+                        range: node.range,
+                        file: this.filePath,
+                        index: index++
+                    });
+                }
+            });
+        } catch (e) { console.log(e); }
+
         return functionData;
     }
 

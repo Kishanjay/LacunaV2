@@ -17,10 +17,9 @@ module.exports = function()
 	{
 		let edges = nativecallsAnalyzer(scripts, runOptions.entry);
 
-		// For each function
 		edges.forEach(function(edge)
 		{
-			callGraph.addEdge(edge.caller, edge.callee, "nativecalls");
+			callGraph.addEdge(edge.caller, edge.called, "nativecalls");
 		});
 
 		callback(edges);
