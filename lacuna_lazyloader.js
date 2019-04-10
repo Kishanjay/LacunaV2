@@ -62,11 +62,12 @@ function getLazyLoadServerCode() {
     return `//Lazy Load Server v0.9
 const express = require("express");
 const fs = require("fs");
+const path = require("path");
 const app = express();
 const bodyParser = require("body-parser");
 const port = ${settings.LAZY_LOAD_SERVER_PORT};
 
-var lazyloadStorage = JSON.parse(fs.readFileSync('lacuna_lazyload_storage.json', 'utf8'));
+var lazyloadStorage = JSON.parse(fs.readFileSync(path.join(__dirname, 'lacuna_lazyload_storage.json'), 'utf8'));
 
 app.use(bodyParser.urlencoded({
     extended: true

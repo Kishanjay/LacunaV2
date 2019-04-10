@@ -19,8 +19,32 @@ JS files and all inline JS scripts will be considered for optimization.
 
 __Thus all files that are not referenced by the entry file will be skipped__
 
+### Lazy loading
+Since there is no guarantee Lacuna will not remove a function that isn't really
+dead, Lacuna features a lazyLoading option.
 
-### Runtime options
+This means that instead of completely removing the presumed dead functions, it 
+will replace it with a lazy loading mechanism that will fetch the functionBody
+from a server and insert it right back into your application.
+
+Thus ensuring not to break the application whilst still removing many 
+unnecessary lines of code.
+
+To enable lazyloading set the optimization level (--olevel -o) to 1.
+After Lacuna has optimized your application, ensure to run the lazyloading_server
+which will serve all swapped out functionBody's on demand.
+
+Find the generated lazyload_server in the destination folder;
+also make sure to install the dependent npm modules: express, fs, body-parser and path.
+
+Example
+```
+node lacuna ./example/proj1 -a static -o 1 -d ./example/proj1_output -f
+npm --prefix ./example/proj1_output install express fs body-parser path
+node-dev ./example/proj1_output/lacuna_lazyload_server.js
+```
+
+### Runtime options (extensive)
 
 | Long          | Short | Description                                                    | Default                  |
 |---------------|-------|----------------------------------------------------------------|--------------------------|
