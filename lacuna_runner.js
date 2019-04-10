@@ -128,10 +128,6 @@ async function verifyRunOptions(runOptions) {
     if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
         throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
     }
-    if (runOptions.olevel == 0 && runOptions.destination) {
-        logger.warn("runOptions.destination useless for optimizationLevel[0]");
-        runOptions.destination = null;
-    }
     if (runOptions.olevel >= 1 && !runOptions.destination) {
         if (!runOptions.force) { // Show a warning before Lacuna starts modifying files
             var answer = await prompt(`Warning Lacuna will permanently modify "${runOptions.directory}", are you sure you want to continue?`);

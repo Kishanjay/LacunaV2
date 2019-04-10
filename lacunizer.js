@@ -47,22 +47,41 @@ function optimizeFiles(deadFunctions, optimizationLevel) {
         if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
         
         var deadFunctions = deadFunctionsByFile[file];
-        removeFunctionsFromFile(deadFunctions, file);
+        removeFunctionsFromFile(deadFunctions, file, optimizationLevel);
     }
 
 }
 
-function removeFunctionsFromFile(functions, file) {
+function removeFunctionsFromFile(functions, file, optimizationLevel) {
     var extension = path.extname(file);
-
     if (!([".ts", ".js"].includes(extension))) {
         return logger.warn(`Could not optimize ${file}`);
     }
-
     var jse = new JsEditor().loadFile(file);
+    var removeFunction = null;
+
+
+    if (optimizationLevel == 1) {
+        // lazy loading
+        removeFunction = (deadFunction) => {
+            jse.lazyloadFunction(deadFunction);
+        }
+        logger.warn("Unimplemented");
+        return;
+    }
+    if (optimizationLevel == 2) { // empty body
+        removeFunction = (deadFunction) => {
+            jse.replaceFunction(deadFunction, "");
+        };
+    }
+    if (optimizationLevel == 3) { // replace with null    
+        removeFunction = (deadFunction) => {
+            jse.removeFunction(deadFunction);
+        };
+    }
+    
     functions.forEach(deadFunction => {
-        // jse.replaceFunction(deadFunction, "console.log('aaa')");
-        jse.removeFunction(deadFunction);
+        removeFunction(deadFunction);
     });
     
     jse.saveFile();
