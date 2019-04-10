@@ -15,12 +15,15 @@
   "author": "Kishan Nirghin",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.18.3",
+    "cheerio": "^1.0.0-rc.2",
     "command-line-args": "^5.0.2",
+    "esprima": "^4.0.1",
+    "express": "^4.16.4",
+    "fs": "0.0.1-security",
     "fs-extra": "^7.0.1",
     "prompt-confirm": "^2.0.4",
     "prompt-sync": "^4.1.6",
-    "winston": "^3.2.1",
-    "cheerio": "^1.0.0-rc.2",
-    "esprima": "^4.0.1"
+    "winston": "^3.2.1"
   }
 }

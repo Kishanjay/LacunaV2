@@ -16,7 +16,8 @@ const logger = require("./_logger");
 
 const JsEditor = require("./js_editor"),
     HTMLEditor = require("./html_editor"),
-    CallGraph = require("./call_graph");
+    CallGraph = require("./call_graph"),
+    LazyLoader = require("./lacuna_lazyloader");
 
 const lacunaSettings = require("./_settings");
 
@@ -28,7 +29,7 @@ function run(runOptions, onFinish) {
     createCompleteCallGraph(runOptions, (callGraph, analyzerResults) => {
 
         /* After the callgraph is completed, remove the dead functions from their files */
-        optimizeFiles(callGraph.getDisconnectedNodes(true), runOptions.olevel);
+        optimizeFiles(runOptions, callGraph);
 
         /* Once that is finished, do the callback */
         onFinish(callGraph, analyzerResults);
@@ -37,22 +38,28 @@ function run(runOptions, onFinish) {
 
 /**
  * Removes deadfunctions (partially) from their corresponding files
+ * Also inserts the lazy loading functionality when needed.
  */
-function optimizeFiles(deadFunctions, optimizationLevel) {
-    if (optimizationLevel == 0) { return; }
-
+function optimizeFiles(runOptions, callGraph) {
+    if (runOptions.olevel == 0) { return; }
+    var deadFunctions = callGraph.getDisconnectedNodes(true);
     var deadFunctionsByFile = groupDeadFunctionsByFile(deadFunctions);
 
+    var lazyLoader = new LazyLoader();
     for(var file in deadFunctionsByFile) { 
         if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
         
         var deadFunctions = deadFunctionsByFile[file];
-        removeFunctionsFromFile(deadFunctions, file, optimizationLevel);
+        removeFunctionsFromFile(deadFunctions, file, runOptions.olevel, lazyLoader);
     }
 
+    /* After all functions are replaced with lazyload */
+    if (runOptions.olevel == 1) {
+        lazyLoader.exportServer(runOptions.directory);
+    }
 }
 
-function removeFunctionsFromFile(functions, file, optimizationLevel) {
+function removeFunctionsFromFile(functions, file, optimizationLevel, lazyLoader) {
     var extension = path.extname(file);
     if (!([".ts", ".js"].includes(extension))) {
         return logger.warn(`Could not optimize ${file}`);
@@ -60,14 +67,14 @@ function removeFunctionsFromFile(functions, file, optimizationLevel) {
     var jse = new JsEditor().loadFile(file);
     var removeFunction = null;
 
-
     if (optimizationLevel == 1) {
-        // lazy loading
+        jse.insert(lazyLoader.getLazyLoadFrame());
+
         removeFunction = (deadFunction) => {
-            jse.lazyloadFunction(deadFunction);
+            var lazyLoadReplacement = lazyLoader.getLazyLoadReplacement(deadFunction);
+            var functionBody = jse.replaceFunction(deadFunction, lazyLoadReplacement);
+            lazyLoader.add(deadFunction, functionBody);
         }
-        logger.warn("Unimplemented");
-        return;
     }
     if (optimizationLevel == 2) { // empty body
         removeFunction = (deadFunction) => {
@@ -86,7 +93,6 @@ function removeFunctionsFromFile(functions, file, optimizationLevel) {
     
     jse.saveFile();
 }
-
 
 /**
  * The functionality that creates the entire callGraph

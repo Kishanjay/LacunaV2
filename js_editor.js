@@ -60,9 +60,11 @@ module.exports = class JsEditor {
     replaceFunction(functionData, replacement) {
         var functionBodyLength = functionData.bodyRange[1] - functionData.bodyRange[0] - 2;
         var startIndex = functionData.bodyRange[0] + 1 + this.offset;
+        var functionBody = this.source.slice(startIndex, startIndex + functionBodyLength);
         this.source = this.source.splice(startIndex, functionBodyLength, replacement);
 
         this.offset += replacement.length - functionBodyLength;
+        return functionBody;
     }
 
     removeFunction(functionData) {
@@ -73,6 +75,10 @@ module.exports = class JsEditor {
         this.offset += replacement.length - functionLength;
     }
 
+    insert(code) {
+        this.source = code + this.source;
+        this.offset += code.length;
+    }
 
     /**
      * Note: this function should only be called when its the js file that gets
