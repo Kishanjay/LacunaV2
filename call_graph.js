@@ -75,7 +75,7 @@ module.exports = class CallGraph {
      * check if the caller is a rootNode and add if it doesn't yet exist
      */
     addEdge(functionDataCaller, functionDataCallee, analyzer, stripObject) {
-        if (isRootNode(functionDataCaller) && !rootNodeExists(functoinDataCaller)) {
+        if (this.isRootNode(functionDataCaller) && !this.rootNodeExists(functionDataCaller)) {
             this.rootNodes.push(new Node(functionDataCaller));
         }
         var caller = this.getNode(functionDataCaller);
@@ -134,7 +134,7 @@ module.exports = class CallGraph {
     }
 
     isRootNode(functionData) {
-        return (functionData.range[0] == 0 && functionData.range[0] == 0)
+        return (functionData.range[0] == null && functionData.range[0] == null)
     }
 
     
