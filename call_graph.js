@@ -69,8 +69,15 @@ module.exports = class CallGraph {
     /** 
      * Wrapper function to add an edge to a node
      * It fetches both nodes a adds a newly created edge to the caller
+     * 
+     * NOTABLE FIX - a bit sloppy but: when an edge is added from a rootNode
+     * there is a change that this rootNode does not exist (yet). Therefore
+     * check if the caller is a rootNode and add if it doesn't yet exist
      */
     addEdge(functionDataCaller, functionDataCallee, analyzer, stripObject) {
+        if (isRootNode(functionDataCaller) && !rootNodeExists(functoinDataCaller)) {
+            this.rootNodes.push(new Node(functionDataCaller));
+        }
         var caller = this.getNode(functionDataCaller);
         var callee = this.getNode(functionDataCallee);
 
@@ -124,6 +131,10 @@ module.exports = class CallGraph {
      */
     rootNodeExists(functionData) {
         return (this.getRootNode(functionData) != null)
+    }
+
+    isRootNode(functionData) {
+        return (functionData.range[0] == 0 && functionData.range[0] == 0)
     }
 
     
