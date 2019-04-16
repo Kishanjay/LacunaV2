@@ -55,7 +55,7 @@ function optimizeFiles(runOptions, callGraph) {
 
     /* After all functions are replaced with lazyload */
     if (runOptions.olevel == 1) {
-        lazyLoader.exportServer(runOptions.directory);
+        lazyLoader.exportStorage(runOptions.directory);
     }
 }
 

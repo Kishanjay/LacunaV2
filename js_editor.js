@@ -69,6 +69,8 @@ module.exports = class JsEditor {
 
     removeFunction(functionData) {
         var replacement = "null;";
+        if (functionData.type == 'FunctionDeclaration') { replacement = ""; }
+        
         var functionLength = functionData.range[1] - functionData.range[0];
         this.source = this.source.splice(functionData.range[0] + this.offset, functionLength, replacement);
 

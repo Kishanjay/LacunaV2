@@ -42,17 +42,15 @@ function lacuna_lazy_load(id, callback){
     }).then(response => {
         return response.text();
     }).then(callback);
-}`
+}\n`
     }
 
     /**
      * Exports a server that is capable of retrieving all functions
      * present in the storage
      */
-    exportServer(destinationFolder) {
+    exportStorage(destinationFolder) {
         console.log("exporting serveR)");
-        var serverCode = getLazyLoadServerCode();
-        fs.writeFileSync(path.join(destinationFolder, "lacuna_lazyload_server.js"), serverCode, 'utf8');
         fs.writeFileSync(path.join(destinationFolder, "lacuna_lazyload_storage.json"), JSON.stringify(this.storage, null, 4), 'utf8');
     }
 }
