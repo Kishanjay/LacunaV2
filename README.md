@@ -44,7 +44,7 @@ npm --prefix ./example/proj1_output install express fs body-parser path
 node-dev ./example/proj1_output/lacuna_lazyload_server.js
 ```
 
-### Runtime options (extensive)
+### Runtime options
 
 | Long          | Short | Description                                                    | Default                  |
 |---------------|-------|----------------------------------------------------------------|--------------------------|
@@ -114,6 +114,23 @@ Where the output of Lacuna will be stored. By default in `lacuna.log`
 #### Force
 When the force option is enabled, Lacuna will without warning overwrite any
 files or folders. (Instead of the default to prompt it to the user)
+
+### Settings
+Some more customizable settings can be found in the _settings.js file
+a few important settings are:
+
+#### CONSIDER_ONLINE_JS_FILES
+Whether Lacuna should take the JS files hosted on other servers into account.
+e.g. referenes to CDN files, or simply hosted somewhere else for performance.
+
+The current implementation of Lacuna will download these files and update all
+inline HTML references with the local file. The files will be downloaded to the
+root of the destination directory under their original filename.
+
+Notice that having multiple references to:
+https://code.jquery.com/jquery-3.4.0.min.js
+
+will store them in the same local file under the name jquery-3.4.0.min.js.
 
 ## Installation
 Install the dependent libraries `npm install`

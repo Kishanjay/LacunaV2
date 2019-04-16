@@ -1,6 +1,12 @@
 module.exports = {
+    /**
+     * Where the analyzers are stored, relative to Lacuna 
+     */
     ANALYZERS_DIR: "analyzers",
     
+    /**
+     * Supported optimization levels
+     */
     OPTIMIZATION_LEVELS: [
         0, // do not replace anything, leaves source-code intact
         1, // replace functions with lazy loading mechanism
@@ -8,12 +14,31 @@ module.exports = {
         3, // replace functions with null
     ],
 
-    /* When unique function ID's are required */
+    /**
+     * Wether Lacuna should also parse the externally hosted JS files
+     * For this the file will be downloaded and stored locally. 
+     * The references in the HTML files will be updated and the local file will
+     * be optimized where needed.
+     */ 
+    CONSIDER_ONLINE_JS_FILES: true,
+
+    /**
+     * Wether Lacuna should export the inline JS to its own file
+     * generally this is a better coding practise
+     */
+    EXPORT_INLINE_JS: true,
+
+
+    /**
+     * The server port where the lazy load server will be hosted on
+     */
+    LAZY_LOAD_SERVER_PORT: 8125,
+
+    /** 
+     * Converts functionData to a unique function ID
+     */
     functionDataToId(functionData) {
         return `${functionData.file}[${functionData.bodyRange[0]}:${functionData.bodyRange[1]}]`;
     },
-
-
-
-    LAZY_LOAD_SERVER_PORT: 8125
+    
 }
