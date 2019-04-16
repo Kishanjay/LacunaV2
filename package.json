@@ -19,6 +19,7 @@
     "cheerio": "^1.0.0-rc.2",
     "command-line-args": "^5.0.2",
     "download-file-sync": "^1.0.4",
+    "escodegen": "^1.11.1",
     "esprima": "^4.0.1",
     "express": "^4.16.4",
     "fs": "0.0.1-security",

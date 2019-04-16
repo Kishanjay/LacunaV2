@@ -9,6 +9,7 @@
 
 const fs = require("fs"),
     esprima = require("esprima"),
+    escodegen = require('escodegen'),
     path = require("path");
 
 require("./prototype_extension");
@@ -43,12 +44,14 @@ module.exports = class JsEditor {
         try {
             esprima.parse(this.source, { range: true }, (node) => {
                 if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
+                    var functionCode = escodegen.generate(node);
                     functionData.push({
                         type: node.type,
                         range: node.range,
                         bodyRange: node.body.range,
                         file: this.filePath,
-                        index: index++
+                        index: index++,
+                        functionCode: functionCode,
                     });
                 }
             });
@@ -63,12 +66,12 @@ module.exports = class JsEditor {
         var functionBody = this.source.slice(startIndex, startIndex + functionBodyLength);
         this.source = this.source.splice(startIndex, functionBodyLength, replacement);
 
-        this.offset += replacement.length - functionBodyLength;
+        this.offset = this.offset - functionBodyLength + replacement.length;
         return functionBody;
     }
 
     removeFunction(functionData) {
-        var replacement = "null;";
+        var replacement = "null";
         if (functionData.type == 'FunctionDeclaration') { replacement = ""; }
         
         var functionLength = functionData.range[1] - functionData.range[0];

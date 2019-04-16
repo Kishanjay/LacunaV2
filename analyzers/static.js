@@ -26,6 +26,6 @@ module.exports = function()
 			callGraph.addEdge(edge.caller, edge.callee, "static");
 		});
 
-		callback(edges);
+		return callback(edges);
 	};
 };

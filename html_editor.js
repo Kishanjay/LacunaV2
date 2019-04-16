@@ -107,7 +107,7 @@ module.exports = class HTMLEditor {
     updateCode(oldCode, newCode) {
         var index = this.source.indexOf(oldCode);
         if (index < 0) {
-            return console.log("html_editor updateCode error: oldCode not found");
+            return logger.error(`[html_editor] cannot update code: '${oldCode}' not found`);
         }
         this.source = this.source.splice(index, oldCode.length, newCode);
     }

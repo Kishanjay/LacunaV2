@@ -146,7 +146,11 @@ if you want to use them)
 
 ## Development
 
-### Issues
+### Open issues
+- Identifying scripts currently fails when there are (extra?) spaces or line 
+breaks  between the words
+
+### Solved issues
 - The dynamic analyzer that requires a webdriver doesn't seem to load external
 JS files in headless mode. The work around currently used is to not run the 
 browser in headless mode; which has the anoying consequence that it activates/

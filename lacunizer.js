@@ -43,7 +43,9 @@ function run(runOptions, onFinish) {
 function optimizeFiles(runOptions, callGraph) {
     if (runOptions.olevel == 0) { return; }
     var deadFunctions = callGraph.getDisconnectedNodes(true);
-    var deadFunctionsByFile = groupDeadFunctionsByFile(deadFunctions);
+    var allDeadFunctionsByFile = groupFunctionsByFile(deadFunctions);
+    var deadFunctionsByFile = removeNestedFunctions(allDeadFunctionsByFile);
+    
 
     var lazyLoader = new LazyLoader();
     for(var file in deadFunctionsByFile) { 
@@ -161,21 +163,105 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
             if (!value) { return; }
         }
         logger.verbose(`CallGraph creation completed`);
-        onCallGraphComplete(callGraph, analyzerResults);
+        return onCallGraphComplete(callGraph, analyzerResults);
     }
 }
 
-function groupDeadFunctionsByFile(deadFunctions) {
+
+/**
+ * Groups an array of function by filename
+ * Puts them in an object with as key the filename
+ */
+function groupFunctionsByFile(functions) {
     var files = {};
 
-    deadFunctions.forEach(deadFunction => {
-        var file = deadFunction.file;
+    functions.forEach(func => {
+        var file = func.file;
         if (!files.hasOwnProperty(file)) {
             files[file] = [];
         }
-        files[file].push(deadFunction);
+        files[file].push(func);
     })
     return files;
+}
+
+
+/**
+ * Removes nested functions from a functions by file object
+ */
+function removeNestedFunctions(functionsByFile) {
+    for (var file in functionsByFile) {
+        if (!functionsByFile.hasOwnProperty(file)) { continue; }
+        
+        var functions = functionsByFile[file];
+        var nonNestedFunctions = getNonNestedFunctions(functions);
+        functionsByFile[file] = nonNestedFunctions;
+
+        var removedFunctions = functions.length - nonNestedFunctions.length;
+        logger.info(`Nested functions [${removedFunctions}/${functions.length}] ${file}`);
+    }
+    return functionsByFile;
+}
+
+
+
+/**
+ * Returns an array of the non nested functions
+ */
+function getNonNestedFunctions(functions) {
+    var outerRangeArray = getOuterRangeArray(functions);
+
+    var nonNestedFunctions = [];
+    functions.forEach(func => {
+        var isNested = outerRangeArray.some((range) => {
+            return (func.range[0] > range[0] && func.range[1] < range[1]);
+        });
+        if (!isNested) { nonNestedFunctions.push(func); }
+    });
+
+    return nonNestedFunctions;
+}
+
+
+/**
+ * Fairly complex function that is really only a helper function to deal
+ * with the nested function problem.
+ * 
+ * The main idea behind this function is that it creates an array of all
+ * function ranges that are ocupied. Every rangeArray item contains the 
+ * range of an existing function. Therefore if a function range falls
+ * between any of the outerRangeArray items, we can conclude that it is 
+ * infact a nested function.
+ */
+function getOuterRangeArray(functions) {
+    var outerRangeArray = [];
+    functions.forEach(func => {
+
+        /* Checks if the new function range is already in there
+            Also updates the outerRangeArray if that used to contain a 
+            nested function.
+            */
+        var isNested = outerRangeArray.some((range) => {    
+            if (func.range[0] >= range[0] && func.range[1] <= range[1]) { 
+                return true; /* do nothing since the new func is nested */
+            }
+            if (func.range[0] < range[0] && func.range[1] > range[1]) {
+                range[0] = func.range[0]; range[1] = func.range[1];
+                return true; /* we are the parent, thus update range */
+            }
+            if (func.range[0] < range[0] && func.range[1] < range[0]) {
+                return false; /* new range on the bottom side */
+            }
+            if (func.range[0] > range[1] && func.range[1] > range[1]) {
+                return false; /* new range on the top side */
+            }
+            console.log("Invalid range error"); process.exit();
+        });
+
+        /* new range will be added to the array (as copy) */
+        if (!isNested) { outerRangeArray.push([func.range[0], func.range[1]]); }
+    });
+    return outerRangeArray;
 }
 
 /**
