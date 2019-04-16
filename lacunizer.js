@@ -48,6 +48,8 @@ function optimizeFiles(runOptions, callGraph) {
     
 
     var lazyLoader = new LazyLoader();
+
+    /* remove dead functions per file */
     for(var file in deadFunctionsByFile) { 
         if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
         
@@ -55,15 +57,23 @@ function optimizeFiles(runOptions, callGraph) {
         removeFunctionsFromFile(deadFunctions, file, runOptions.olevel, lazyLoader);
     }
 
-    /* After all functions are replaced with lazyload */
+    /* Export the lazy load storage if needed */
     if (runOptions.olevel == 1) {
         lazyLoader.exportStorage(runOptions.directory);
     }
 }
 
+/**
+ * Removes the identified dead functions from this file
+ * For JS files it identifies the functions by their respective index
+ * 
+ * HTML files are slightly more complex as the functionIndex is only relative to
+ * the script tags.
+ */
 function removeFunctionsFromFile(functions, file, optimizationLevel, lazyLoader) {
     var extension = path.extname(file);
     if (!([".ts", ".js"].includes(extension))) {
+        console.log(functions);
         return logger.warn(`Could not optimize ${file}`);
     }
     var jse = new JsEditor().loadFile(file);
@@ -265,7 +275,7 @@ function getOuterRangeArray(functions) {
 }
 
 /**
- * Retrieves the functions from javascript
+ * Retrieves the functions from javascript 
  */
 function retrieveFunctions(scripts) {
     var functions = [];
@@ -285,7 +295,7 @@ function retrieveFunctions(scripts) {
 /**
  * Retrieves both the internal as external scripts from an HTML file
  *
- * @param entryFile the HTML file location
+ * @param {String} entryFile the HTML file location
  */
 function retrieveScripts(entryFile) {
     var htmle = new HTMLEditor().loadFile(entryFile);

@@ -33,7 +33,9 @@ module.exports = class CallGraph {
     constructor(functions) {
         this.nodes = [];
         this.edges = [];
-        this.rootNodes = []; /* auto executed, not real functions */
+
+        /* Note: these aren't functions, rather the files that call functions */
+        this.rootNodes = [];
 
         functions.forEach((functionData) => {
             this.addNode(functionData);

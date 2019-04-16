@@ -35,77 +35,83 @@ module.exports = class HTMLEditor {
      * will also take externally hosted JS files into account.
      */
     getExternalScripts() {
-        var currentDirectory = path.dirname(this.filePath);
         var cScripts = this.html('script');
 
         var scripts = [];
         cScripts.each((index, cScriptElement) => {
-            if (cScriptElement.attribs["src"]) {
-                /* If the type attribute is set it should be valid for JS */
-                var scriptType = cScriptElement.attribs["type"];
-                if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
+            if (!cScriptElement.attribs["src"]) { return; }/* skip internal */
 
-                /* Assume the script is hosted on same server */
-                var scriptSrc = cScriptElement.attribs["src"];
+            /* If the type attribute is set it should be valid for JS */
+            var scriptType = cScriptElement.attribs["type"];
+            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
 
-                /* Checks if the script is externally hosted */
-                if (isExternallyHosted(scriptSrc)) {
-                    if (!settings.CONSIDER_ONLINE_JS_FILES) { return; }
-                    logger.verbose(`Downloading ${scriptSrc}`);
-                    
-                    var onlineFileContent = downloadFileSync(scriptSrc);
-                    var downloadedFileName = path.basename(scriptSrc);
-                    fs.writeFileSync(path.join(currentDirectory, downloadedFileName), onlineFileContent);
+            /* Assume the script is hosted on same server */
+            var scriptSrc = cScriptElement.attribs["src"];
 
-                    /* Update reference in HTML file */
-                    var oldReference = this.html.html(cScriptElement);
-                    var newReference = `<script src="${downloadedFileName}"></script>`;
-                    this.updateCode(oldReference, newReference);
-                    this.saveFile();
+            /* Checks if the script is externally hosted */
+            if (isExternallyHosted(scriptSrc)) {
+                if (!settings.CONSIDER_ONLINE_JS_FILES) { return; }
 
-                    /* Overwrite scriptSrc to new local file */
-                    scriptSrc = downloadedFileName;
-                }
-
-                var absoluteScriptSrc = path.join(currentDirectory, scriptSrc);
-                scripts.push({
-                    src: absoluteScriptSrc,
-                    index: index,
-                    source: fs.readFileSync(absoluteScriptSrc).toString(),
-                });
+                /* Download the online script and update all references */
+                scriptSrc = adoptOnlineScript(scriptSrc);
             }
+
+            var absoluteScriptSrc = path.join(path.dirname(this.filePath), scriptSrc);
+            scripts.push({
+                src: absoluteScriptSrc,
+                index: index,
+                source: fs.readFileSync(absoluteScriptSrc).toString(),
+            });
+            
         });
         return scripts;
     }
+
+    /**
+     * Function responsible for retrieving all internal scripts from HTML code
+     * 
+     * Lacuna will not only 'get' the internal scripts, but also store them
+     * into an external file and update the HTML reference.
+     */
     getInternalScripts() {
         var cScripts = this.html('script');
 
         var scripts = [];
         cScripts.each((index, cScriptElement) => {
-            if (!cScriptElement.attribs["src"]) {
-                var scriptType = cScriptElement.attribs["type"];
-                if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
-                
-                var source = cheerio(cScriptElement).html();
-                var bodyStart = this.source.indexOf(source);
-                var bodyEnd = bodyStart + source.length;
+            if (cScriptElement.attribs["src"]) { return; } /* skip external */
 
-                scripts.push({
-                    src: this.filePath,
-                    index: index,
-                    source: cheerio(cScriptElement).html(),
-                    bodyRange: [bodyStart, bodyEnd]
-                });
-            }
+            /* If the type attribute is set it should be valid for JS */
+            var scriptType = cScriptElement.attribs["type"];
+            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
+            
+            /* Store the inline script into a local file */
+            var inlineScriptContent = cheerio(cScriptElement).html();
+            var randomFileName = getRandomFilename(6) + ".js";
+            var localFilePath = path.join(path.dirname(this.filePath), randomFileName);
+            fs.writeFileSync(localFilePath, inlineScriptContent);
+
+            /* Update the reference */
+            var oldReference = this.html.html(cScriptElement);
+            var newReference = `<script src="${randomFileName}"></script>`;
+            this.updateCode(oldReference, newReference);
+            this.saveFile();
+
+            scripts.push({
+                src: localFilePath,
+                index: index,
+                source: inlineScriptContent,
+            });
         });
         return scripts;
     }
 
     /**
      * Updates lines of code from the HTML file
+     * 
+     * The index function may fail when there are weird linebreaks
      */
     updateCode(oldCode, newCode) {
-        var index = this.source.indexOf(oldCode);
+        var index = this.source.indexOf(oldCode); 
         if (index < 0) {
             return logger.error(`[html_editor] cannot update code: '${oldCode}' not found`);
         }
@@ -115,6 +121,32 @@ module.exports = class HTMLEditor {
     saveFile() {
         fs.writeFileSync(this.filePath, this.source);
     }
+
+    /**
+     * Downloads and uses an online script
+     * 
+     * First it downloads it to the currectDirectory
+     * Then it updates all references in the current file to use the local
+     * version of the script
+     */
+    adoptOnlineScript(scriptSrc) {
+        if (!isExternallyHosted(scriptSrc)) { logger.error("Invalid action"); }; 
+        logger.verbose(`Downloading ${scriptSrc}`);
+                
+        var onlineScriptContent = downloadFileSync(scriptSrc);
+        var downloadedFileName = path.basename(scriptSrc);
+        var localFilePath = path.join(path.dirname(this.filePath), downloadedFileName);
+        fs.writeFileSync(localFilePath, onlineScriptContent);
+
+        /* Update reference in HTML file */
+        var oldReference = this.html.html(cScriptElement);
+        var newReference = `<script src="${downloadedFileName}"></script>`;
+        this.updateCode(oldReference, newReference);
+        this.saveFile();
+
+        /* Returns the new filename */
+        return downloadedFileName;
+    }
 }
 
 /**
@@ -123,3 +155,16 @@ module.exports = class HTMLEditor {
 function isExternallyHosted(scriptSrc) {
     return scriptSrc.toLowerCase().startsWith("http:/") || scriptSrc.toLowerCase().startsWith("https:/");
 }
+
+/**
+ * Snippet to generate a random filename given a length
+ */
+function getRandomFilename(length) {
+    var text = "";
+    var possible = "abcdefghijklmnopqrstuvwxyz0123456789";
+  
+    for (var i = 0; i < length; i++)
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+  
+    return text;
+  }
