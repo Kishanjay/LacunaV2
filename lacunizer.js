@@ -45,7 +45,6 @@ function optimizeFiles(runOptions, callGraph) {
     var deadFunctions = callGraph.getDisconnectedNodes(true);
     var allDeadFunctionsByFile = groupFunctionsByFile(deadFunctions);
     var deadFunctionsByFile = removeNestedFunctions(allDeadFunctionsByFile);
-    
 
     var lazyLoader = new LazyLoader();
 
@@ -126,9 +125,7 @@ function removeFunctionsFromFile(functions, file, optimizationLevel, lazyLoader)
 function createCompleteCallGraph(runOptions, onCallGraphComplete) {
     /* Part 1: creating the edgeless callgraph, with every function as a node */
     var scripts = retrieveScripts(path.join(runOptions.directory, runOptions.entry));
-    var functions = retrieveFunctions(scripts);
-    logger.debug(`Inserting [${functions.length}/${scripts.length}] nodes`);
-    var callGraph = new CallGraph(functions);
+    var callGraph = new CallGraph(retrieveFunctions(scripts));
 
     /* Part 2: running every analyzer to create edges in the callgraph */
     var analyzerResults = [];
@@ -319,6 +316,12 @@ function retrieveScripts(entryFile) {
         });
     });
 
+    var htmlEventScript = htmle.getEventAttributeScript();
+    scripts.push({
+        src: htmlEventScript.src,
+        source: htmlEventScript.source,
+        type: "eventAttributes"
+    });
     return scripts;
 }
 

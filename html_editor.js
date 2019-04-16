@@ -105,6 +105,29 @@ module.exports = class HTMLEditor {
         return scripts;
     }
 
+    getEventAttributeScript() {
+        var eventAttributeScriptContent = "";
+        var htmlEventAttributes = getHtmlEventAttributes();
+        htmlEventAttributes.forEach(attrib => {
+            var elementsWithAttribs = this.html("[" + attrib + "]");
+            elementsWithAttribs.each((index, cElement) => {
+                var code = cElement.attribs[attrib];
+                eventAttributeScriptContent += code;
+                eventAttributeScriptContent += ";";
+            });
+        });
+        /* Temp store it in a file to fix some issues */
+        var randomFileName = getRandomFilename(6);
+        var localFilePath = path.join(path.dirname(this.filePath), randomFileName);
+        fs.writeFileSync(localFilePath, eventAttributeScriptContent);
+
+        return {
+            src: localFilePath,
+            index: -1,
+            source: eventAttributeScriptContent
+        };
+    }
+
     /**
      * Updates lines of code from the HTML file
      * 
@@ -167,4 +190,54 @@ function getRandomFilename(length) {
       text += possible.charAt(Math.floor(Math.random() * possible.length));
   
     return text;
-  }
+}
+
+
+/**
+ * Big list from w3schools
+ */
+function getHtmlEventAttributes() {
+    return [
+        // Window Event Attributes
+        "onafterprint", "onbeforeprint", "onbeforeunload", "onerror", "onhashchange",
+        "onload", "onmessage", "onoffline", "ononline", "onpagehide", "onpageshow",
+        "onpopstate", "onresize", "onstorage", "onunload",
+
+        // Form Events
+        "onblur", "onchange", "oncontextmenu", "onfocus", "oninput", "oninvalid",
+        "onreset", "onsearch", "onselect", "onsubmit",
+
+        // Keyboard Events
+        "onkeydown", "onkeypress", "onkeyup",
+
+        // Mouse Events
+        "onclick", "ondblclick", "onmousedown", "onmousemove", "onmouseout",
+        "onmouseover", "onmouseup", "onmousewheel", "onwheel",
+
+        // Drag Events
+        "ondrag", "ondragend", "ondragenter", "ondragleave", "ondragover",
+        "ondragstart", "ondrop", "onscroll",
+
+        // Clipboard Events
+        "oncopy", "oncut", "onpaste",
+
+        // Media Events
+        "onabort", "oncanplay", "oncanplaythrough", "oncuechange",
+        "ondurationchange", "onemptied", "onended", "onerror", "onloadeddata",
+        "onloadedmetadata", "onloadstart", "onpause", "onplay", "onplaying",
+        "onprogress", "onratechange", "onseeked", "onseeking", "onstalled",
+        "onsuspend", "ontimeupdate", "onvolumechange", "onwaiting",
+
+        // Misc Events
+        "ontoggle"
+    ];
+}
+
+
+
+
+
+
+
+
+
