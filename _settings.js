@@ -3,6 +3,13 @@ module.exports = {
      * Where the analyzers are stored, relative to Lacuna 
      */
     ANALYZERS_DIR: "analyzers",
+
+
+    /**
+     * The output dir of Lacuna files, relative to the destination.
+     * NOTE that this directory will be removed/cleared on every run of Lacuna
+     */
+    LACUNA_OUTPUT_DIR: "lacuna_output",
     
     /**
      * Supported optimization levels
@@ -20,13 +27,15 @@ module.exports = {
      * The references in the HTML files will be updated and the local file will
      * be optimized where needed.
      */ 
-    CONSIDER_ONLINE_JS_FILES: true,
+    CONSIDER_EXTERNALLY_HOSTED_SCRIPTS: true,
 
     /**
      * Wether Lacuna should export the inline JS to its own file
      * generally this is a better coding practise
+     * 
+     * NOTE: unimplemented (yet)
      */
-    EXPORT_INLINE_JS: true,
+    EXPORT_INLINE_SCRIPTS: true,
 
 
     /**

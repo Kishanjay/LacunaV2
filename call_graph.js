@@ -27,7 +27,8 @@
 
 const { Dotify, objectToDOT } = require("./dotify");
 const logger = require("./_logger");
-const path = require("path");
+
+const Node = require("./call_graph-node");
 
 module.exports = class CallGraph {
     constructor(functions) {
@@ -47,16 +48,31 @@ module.exports = class CallGraph {
      * Also creates a rootNode if necessary
      */
     addNode(functionData) {
-        if (functionData.range[0] == null || functionData.range[1] == null) {
-            logger.warn("rootNodes should be added automatically");
+        if (!this.fitsNode(functionData)) {
+            logger.warn("[addNode] adding invalid node", functionData);
         }
         this.nodes.push(new Node(functionData));
 
         /* Check if a rootNode should be added */
         var rootNode = { file: functionData.file, type: 'rootNode', range: [null, null] };
-        if (!this.rootNodeExists(rootNode)) {
+        if (!this.getRootNode(rootNode)) {
             this.rootNodes.push(new Node(rootNode));      
         }
+    }
+
+    /**
+     * Adds a valid rootNode based on the functionData
+     */
+    addRootNode(functionData, stripObject) {
+        var rootNode = this.getRootNode(functionData);
+        if (rootNode) {
+            logger.warn("[addRootNode] already exists", functionData);    
+        }
+        else {
+            rootNode = new Node({ file: functionData.file, range: [null, null] });
+            this.rootNodes.push(rootNode);
+        }
+        return stripObject ? rootNode.functionData : rootNode;
     }
 
     /**
@@ -75,9 +91,12 @@ module.exports = class CallGraph {
      * NOTABLE FIX - a bit sloppy but: when an edge is added from a rootNode
      * there is a change that this rootNode does not exist (yet). Therefore
      * check if the caller is a rootNode and add if it doesn't yet exist
+     * 
+     * (TODO better fix: create all rootNodes at the start - thus for every
+     * involved file)
      */
     addEdge(functionDataCaller, functionDataCallee, analyzer, stripObject) {
-        if (this.isRootNode(functionDataCaller) && !this.rootNodeExists(functionDataCaller)) {
+        if (this.fitsRootNode(functionDataCaller) && !this.getRootNode(functionDataCaller)) {
             this.rootNodes.push(new Node(functionDataCaller));
         }
         var caller = this.getNode(functionDataCaller);
@@ -88,14 +107,19 @@ module.exports = class CallGraph {
 
     /** 
      * Fetches an existing nodeObject given its functionData
-     * Also supports rootNodes, as its range[0,1] will be null
      */
-    getNode(functionData) {
+    getNode(functionData, excludeRootNodes) {
         var nodeList = this.nodes;
-        if (functionData.range[0] == null || functionData.range[1] == null) {
-            if (!functionData.range[0] == null && functionData.range[1] == null) {
-                logger.warn("Invalid node");
+        if (!this.fitsNode(functionData)) {
+            if (!(this.fitsRootNode(functionData))) {
+                logger.warn("[getNode] Invalid node", functionData);
+                return null;    
             }
+            if (excludeRootNodes) {
+                logger.warn("[getNode] rootNodes excluded", functionData);
+                return null;
+            }
+            /* continue with rootNodes */
             nodeList = this.rootNodes;
         }
 
@@ -109,34 +133,69 @@ module.exports = class CallGraph {
             }
         };
 
-        logger.warn("Could not find node", functionData);
+        logger.warn("[getNode] not found", functionData);
         return null;
     }
 
-    /** 
-     * TODO: Should be replaced with getNode
+    /**
+     * Should only be getting rootNodes
      */
-    getRootNode(functionData) {
-        if (functionData.range[0] != null || functionData.range[1]) {
-            logger.warn("Invalid rootnode", functionData);
+    getRootNode(functionData, stripObject) {
+        if (!this.fitsRootNode(functionData)) {
+            logger.warn("[getRootNode] invalid node", functionData);
         }
         for (var i = 0; i < this.rootNodes.length; i++){
             if (this.rootNodes[i].functionData.file == functionData.file) {
-                return this.rootNodes[i];
+                var rootNode = this.rootNodes[i];
+
+                return stripObject ? rootNode.functionData : rootNode;
             }
         }
         return null;
     }
 
     /**
-     * Returns a Boolean on whether the rootNode already exists
+     * Fetches a rootNode, creates it if it didn't exist yet.
      */
-    rootNodeExists(functionData) {
-        return (this.getRootNode(functionData) != null)
+    assertRootNode(functionData, stripObject) {
+        var rootNode = this.getRootNode(functionData, stripObject);
+        if (!rootNode) {
+            logger.info("Creating rootnode", functionData);
+            rootNode = this.addRootNode(functionData, stripObject);
+        }
+        return rootNode;
     }
 
-    isRootNode(functionData) {
+    /**
+     * If some functionData fits the rootNode constraints
+     */
+    fitsRootNode(functionData) {
         return (functionData.range[0] == null && functionData.range[0] == null)
+    }
+
+    /**
+     * If some functionData fits the node constraints.
+     */
+    fitsNode(functionData) {
+        return (functionData.range[0] != null && functionData.range[1] != null);
+    }
+
+    /**
+     * Boolean on whether a node exists
+     */
+    nodeExists(functionData) {
+        if (!this.fitsNode(functionData)) {
+            logger.warn("[nodeExists] Invalid node", functionData);
+            return false;
+        }
+        this.nodes.forEach((node) => {
+            if (node.functionData.file == functionData.file &&
+                node.functionData.range[0] == functionData.range[0] &&
+                node.functionData.range[1] == functionData.range[1]) {
+                return node;
+            }
+        });
+        return false;
     }
 
     
@@ -235,104 +294,3 @@ module.exports = class CallGraph {
     }
 }
 
-
-/** ============================================================================
- *  CLASS SEPERATOR
- * ========================================================================== */
-
-
-/**
- * @description The representation of a function within this callgraph
- */
-class Node {
-    constructor(functionData) {
-        this.edges = []; // edges to other nodes (directional/one-way edges)
-        functionData.file = path.normalize(functionData.file);
-        this.functionData = functionData; // preserves original function data
-    }
-
-    /**
-     * Adds an edge to another node  
-     * 
-     * NOTE multiple edges can exist between the same nodes
-     */
-    addEdge(node, analyzer, stripObject) {
-        var edge = new Edge(this, node, analyzer);
-        this.edges.push(edge);
-
-        var caller = edge.caller;
-        var callee = edge.callee;
-
-        if (stripObject) {
-            caller = caller.functionData;
-            callee = callee.functionData;
-        }
-        return {
-            caller,
-            callee
-        }
-    }
-
-    /**
-     * Adds all nodes connected to this node to the connectedNodes array
-     * doesnt return anything as it stores the result in the array.
-     */
-    addConnectedNodes(connectedNodes, stripObject) {
-        this.edges.forEach((edge) => {
-            var callee = edge.callee;
-            if (stripObject) { callee = callee.functionData; }
-
-            /* If we've encountered that node before, skip */
-            if (connectedNodes.includes(callee)) { return; }
-            
-            connectedNodes.push(callee);
-            edge.callee.addConnectedNodes(connectedNodes, stripObject);
-        })
-    }
-
-    /** Prints the current node and its children */
-    printGraph(iter) {
-        console.log("\t".repeat(iter), this.__str__());
-
-        this.edges.forEach((edge) => {
-            edge.callee.printGraph(iter+1);
-        });
-    }
-
-    /**
-     * Add all self to child relations to the dotify object
-     * 
-     * @param {Dotify} dotty
-     * Dotty object that will store all the object data
-     */
-    addToDotify(dotty, consideredNodes) {
-        /* Prevent infinite loops */
-        if (consideredNodes.includes(this)) { return; }
-        consideredNodes.push(this);
-
-        this.edges.forEach((edge) => {
-            dotty.addEdge(this.__str__(), edge.callee.__str__(), { label: edge.analyzer });
-            
-            /* Recursively add grand-child relations */
-            edge.callee.addToDotify(dotty, consideredNodes); 
-        });
-    }
-
-    /** String representation of the node */
-    __str__() {
-        return this.functionData.type + "@" + this.functionData.file + ":" + this.functionData.range;
-    }
-}
-
-
-/** ============================================================================
- *  CLASS SEPERATOR
- * ========================================================================== */
-/** represents a caller-callee relationship (directional edge) */
-class Edge {
-    constructor(caller, callee, analyzer) {
-        this.caller = caller;
-        this.callee = callee;
-        this.analyzer = analyzer;
-    }
-}

@@ -21,7 +21,7 @@ module.exports = function()
 		let edges = staticAnalyzer(scripts, runOptions.entry);
 
 		// edges contains an array with the following object:
-		// {caller: {file, start, end}, callee: {file, start, end} } 
+		// {caller: {file, range[start, end]}, callee: {file, range[start, end]} } 
 		edges.forEach(function (edge) {
 			callGraph.addEdge(edge.caller, edge.callee, "static");
 		});

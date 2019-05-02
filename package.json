@@ -4,7 +4,7 @@
   "description": "Lacuna improved",
   "main": "lacuna.js",
   "scripts": {
-    "test": "node lacuna ./example/proj1 -a static"
+    "test": "node lacuna ./example/test -a static -d ./example/test.output -o 3 -f"
   },
   "keywords": [
     "Lacuna",

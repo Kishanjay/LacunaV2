@@ -11,14 +11,14 @@ const cheerio = require("cheerio"),
     path = require("path"),
     downloadFileSync = require("download-file-sync");
 
-const settings = require("./_settings");
+const lacunaSettings = require("./_settings");
 const logger = require("./_logger");
 
 VALID_JS_TYPES = ['text/javascript', 'application/javascript', 'application/ecmascript', 'text/ecmascript'];
 
 module.exports = class HTMLEditor {
     loadFile(filePath) {
-        this.filePath = filePath;
+        this.filePath = filePath; /* relative to pwd */
         this.source = this.originalSource = fs.readFileSync(filePath).toString();
         this.html = this.originalHtml = cheerio.load(this.source);
         return this;
@@ -27,12 +27,6 @@ module.exports = class HTMLEditor {
     /**
      * This function responsible for retrieving ALL external JS files.
      * That means everything but the inline JS. 
-     * 
-     * By default it will only consider JS files from the same server as the
-     * HTML file being considered.
-     * 
-     * Having the option: CONSIDER_ONLINE_JS_FILES enabled in the _settings
-     * will also take externally hosted JS files into account.
      */
     getExternalScripts() {
         var cScripts = this.html('script');
@@ -43,64 +37,19 @@ module.exports = class HTMLEditor {
 
             /* If the type attribute is set it should be valid for JS */
             var scriptType = cScriptElement.attribs["type"];
-            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
+            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) { return; }
 
             /* Assume the script is hosted on same server */
             var scriptSrc = cScriptElement.attribs["src"];
-
-            /* Checks if the script is externally hosted */
-            if (isExternallyHosted(scriptSrc)) {
-                if (!settings.CONSIDER_ONLINE_JS_FILES) { return; }
-
-                /* Download the online script and update all references */
-                scriptSrc = adoptOnlineScript(scriptSrc);
-            }
+            if (isExternallyHosted(scriptSrc)){ return; }
 
             var absoluteScriptSrc = path.join(path.dirname(this.filePath), scriptSrc);
             scripts.push({
-                src: absoluteScriptSrc,
+                src: path.normalize(scriptSrc),
                 index: index,
                 source: fs.readFileSync(absoluteScriptSrc).toString(),
             });
             
-        });
-        return scripts;
-    }
-
-    /**
-     * Function responsible for retrieving all internal scripts from HTML code
-     * 
-     * Lacuna will not only 'get' the internal scripts, but also store them
-     * into an external file and update the HTML reference.
-     */
-    getInternalScripts() {
-        var cScripts = this.html('script');
-
-        var scripts = [];
-        cScripts.each((index, cScriptElement) => {
-            if (cScriptElement.attribs["src"]) { return; } /* skip external */
-
-            /* If the type attribute is set it should be valid for JS */
-            var scriptType = cScriptElement.attribs["type"];
-            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
-            
-            /* Store the inline script into a local file */
-            var inlineScriptContent = cheerio(cScriptElement).html();
-            var randomFileName = getRandomFilename(6) + ".js";
-            var localFilePath = path.join(path.dirname(this.filePath), randomFileName);
-            fs.writeFileSync(localFilePath, inlineScriptContent);
-
-            /* Update the reference */
-            var oldReference = this.html.html(cScriptElement);
-            var newReference = `<script src="${randomFileName}"></script>`;
-            this.updateCode(oldReference, newReference);
-            this.saveFile();
-
-            scripts.push({
-                src: localFilePath,
-                index: index,
-                source: inlineScriptContent,
-            });
         });
         return scripts;
     }
@@ -116,13 +65,9 @@ module.exports = class HTMLEditor {
                 eventAttributeScriptContent += ";";
             });
         });
-        /* Temp store it in a file to fix some issues */
-        var randomFileName = getRandomFilename(6);
-        var localFilePath = path.join(path.dirname(this.filePath), randomFileName);
-        fs.writeFileSync(localFilePath, eventAttributeScriptContent);
 
         return {
-            src: localFilePath,
+            src: null,
             index: -1,
             source: eventAttributeScriptContent
         };
@@ -146,19 +91,43 @@ module.exports = class HTMLEditor {
     }
 
     /**
+     * Download all externally hosted scripts from the current HTML file
+     */
+    importExternallyHostedScripts(directory) {
+        var cScripts = this.html('script');
+        cScripts.each((index, cScriptElement) => {
+            if (!cScriptElement.attribs["src"]) { return; } /* skip internal */
+
+            /* If the type attribute is set it should be valid for JS */
+            var scriptType = cScriptElement.attribs["type"];
+            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) return;
+
+            var scriptSrc = cScriptElement.attribs["src"];
+
+            /* Checks if the script is externally hosted */
+            if (isExternallyHosted(scriptSrc)) {
+
+                /* Download the online script and update all references */
+                scriptSrc = importExternallyHostedScript(directory, scriptSrc);
+                logger.verbose("Importing script " + scriptSrc);
+            }
+        });
+    }
+
+    /**
      * Downloads and uses an online script
      * 
      * First it downloads it to the currectDirectory
      * Then it updates all references in the current file to use the local
      * version of the script
      */
-    adoptOnlineScript(scriptSrc) {
+    importExternallyHostedScript(directory, scriptSrc) {
         if (!isExternallyHosted(scriptSrc)) { logger.error("Invalid action"); }; 
         logger.verbose(`Downloading ${scriptSrc}`);
                 
         var onlineScriptContent = downloadFileSync(scriptSrc);
-        var downloadedFileName = path.basename(scriptSrc);
-        var localFilePath = path.join(path.dirname(this.filePath), downloadedFileName);
+        var downloadedFileName = "imported_" + path.basename(scriptSrc);
+        var localFilePath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
         fs.writeFileSync(localFilePath, onlineScriptContent);
 
         /* Update reference in HTML file */
@@ -170,7 +139,38 @@ module.exports = class HTMLEditor {
         /* Returns the new filename */
         return downloadedFileName;
     }
+
+    /**
+     * Exports all internal JS scrips to their own file
+     */
+    exportInternalScripts(directory) {
+        var cScripts = this.html('script');
+
+        cScripts.each((index, cScriptElement) => {
+            if (cScriptElement.attribs["src"]) { return; } /* skip external */
+
+            /* If the type attribute is set it should be valid for JS */
+            var scriptType = cScriptElement.attribs["type"];
+            if (scriptType && !VALID_JS_TYPES.includes(scriptType)) { return; }
+            
+            /* Store the inline script into a local file */
+            var inlineScriptContent = cheerio(cScriptElement).html();
+            var randomFileName = "exported_" + getRandomFilename(6) + ".js";
+            var relativeFilePath = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, randomFileName); /* relative to the project */
+            var filePath = path.join(directory, relativeFilePath); /* relative to pwd */
+            fs.writeFileSync(filePath, inlineScriptContent);
+
+            /* Update the reference */
+            var oldReference = this.html.html(cScriptElement);
+            var newReference = `<script src="${relativeFilePath}"></script>`;
+            this.updateCode(oldReference, newReference);
+            this.saveFile();
+        });
+    }
 }
+
+
+
 
 /**
  * Stateless helper function

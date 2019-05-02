@@ -3,16 +3,15 @@
  * Kishan Nirghin
  * 
  * @description
- * This file retrieves the functions of the project
- * Creates a graph with nodes representing these functions
- * Executes the different analyzers of Lacuna on the projects
- * Creates the edges in the graph
- * 
- * Outputs information regarding the functions
+ * This file retrieves all functions of the project (with the help of ESprima)
+ * Creates the call_graph with nodes representing the functions
+ * Execute all chosen analyzers on the project
+ *  -> which will create the edges in the call_graph
  */
 
 const path = require("path");
 const logger = require("./_logger");
+const fs = require("fs-extra");
 
 const JsEditor = require("./js_editor"),
     HTMLEditor = require("./html_editor"),
@@ -22,7 +21,7 @@ const JsEditor = require("./js_editor"),
 const lacunaSettings = require("./_settings");
 
 /**
- * Does the actual execution
+ * Starts up the lacunizer
  */
 function run(runOptions, onFinish) {
     /* Creates the complete callgraph using the analyzers */
@@ -48,12 +47,12 @@ function optimizeFiles(runOptions, callGraph) {
 
     var lazyLoader = new LazyLoader();
 
-    /* remove dead functions per file */
+    /* remove dead functions per file, also fills the lazyload db */
     for(var file in deadFunctionsByFile) { 
         if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
         
         var deadFunctions = deadFunctionsByFile[file];
-        removeFunctionsFromFile(deadFunctions, file, runOptions.olevel, lazyLoader);
+        removeFunctionsFromFile(deadFunctions, file, runOptions, lazyLoader);
     }
 
     /* Export the lazy load storage if needed */
@@ -69,15 +68,16 @@ function optimizeFiles(runOptions, callGraph) {
  * HTML files are slightly more complex as the functionIndex is only relative to
  * the script tags.
  */
-function removeFunctionsFromFile(functions, file, optimizationLevel, lazyLoader) {
+function removeFunctionsFromFile(functions, file, runOptions, lazyLoader) {
     var extension = path.extname(file);
     if (!([".ts", ".js"].includes(extension))) {
         console.log(functions);
         return logger.warn(`Could not optimize ${file}`);
     }
-    var jse = new JsEditor().loadFile(file);
+    var jse = new JsEditor().loadFile(path.join(runOptions.directory, file));
     var removeFunction = null;
 
+    var optimizationLevel = runOptions.olevel;
     if (optimizationLevel == 1) {
         jse.insert(lazyLoader.getLazyLoadFrame());
 
@@ -123,8 +123,10 @@ function removeFunctionsFromFile(functions, file, optimizationLevel, lazyLoader)
  * drawn by which analyzer
  */
 function createCompleteCallGraph(runOptions, onCallGraphComplete) {
+    /* Part 0: Download externally hosted scripts & export internal scripts */
+    normalizeScripts(runOptions.directory, runOptions.entry);
     /* Part 1: creating the edgeless callgraph, with every function as a node */
-    var scripts = retrieveScripts(path.join(runOptions.directory, runOptions.entry));
+    var scripts = retrieveScripts(runOptions.directory, runOptions.entry);
     var callGraph = new CallGraph(retrieveFunctions(scripts));
 
     /* Part 2: running every analyzer to create edges in the callgraph */
@@ -134,7 +136,16 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
     analyzers.forEach((analyzer) => {
         analyzersCompleted[analyzer.name] = false;
         try {
-            analyzer.object.run(runOptions, callGraph, scripts, onAnalyzerDone);
+            /* The analyzers essentially have all project information available */
+            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
+                analyzerResults.push({
+                    analyzer: analyzer.name,
+                    edges: edges
+                });
+    
+                logger.silly(`Analyzer[${analyzer.name}] aliveFunctions: ${edges.length}`)
+                completeAnalyzer(analyzer); /* NOTE: this call is async cuz of callback */
+            });
         }
         catch (error) {
             logger.warn(`Analyzer[${analyzer.name}] failed`);
@@ -142,16 +153,6 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
             completeAnalyzer(analyzer);
         }
 
-        /* Store the acquired results from each analyzer */
-        function onAnalyzerDone(edges) {
-            analyzerResults.push({
-                analyzer: analyzer.name,
-                edges: edges
-            });
-
-            logger.silly(`Analyzer[${analyzer.name}] aliveCount: ${edges.length}`)
-            completeAnalyzer(analyzer);
-        } 
     });
 
     /**
@@ -197,10 +198,13 @@ function groupFunctionsByFile(functions) {
  * Removes nested functions from a functions by file object
  */
 function removeNestedFunctions(functionsByFile) {
+    /* Remove the nested functions PER file */
     for (var file in functionsByFile) {
         if (!functionsByFile.hasOwnProperty(file)) { continue; }
         
         var functions = functionsByFile[file];
+
+        /* The actual magic relies on the helper function */
         var nonNestedFunctions = getNonNestedFunctions(functions);
         functionsByFile[file] = nonNestedFunctions;
 
@@ -213,13 +217,17 @@ function removeNestedFunctions(functionsByFile) {
 
 
 /**
- * Returns an array of the non nested functions
+ * Magic helper function that does lots
+ * Essentially returns an array of the non nested functions
  */
 function getNonNestedFunctions(functions) {
+    /* gets all ocupied function ranges */
     var outerRangeArray = getOuterRangeArray(functions);
 
     var nonNestedFunctions = [];
     functions.forEach(func => {
+
+        /* if it is in between some outerrange range it is nested */
         var isNested = outerRangeArray.some((range) => {
             return (func.range[0] > range[0] && func.range[1] < range[1]);
         });
@@ -291,10 +299,13 @@ function retrieveFunctions(scripts) {
 
 /**
  * Retrieves both the internal as external scripts from an HTML file
+ * Also, downloads externally hosted scripts, and updates the HTML reference
+ * Also, it creates a temp file containing all HTML event attributes
  *
  * @param {String} entryFile the HTML file location
  */
-function retrieveScripts(entryFile) {
+function retrieveScripts(directory, entry) {
+    var entryFile = path.join(directory, entry);
     var htmle = new HTMLEditor().loadFile(entryFile);
     var scripts = [];
 
@@ -307,22 +318,38 @@ function retrieveScripts(entryFile) {
         });
     });
 
-    var internalScripts = htmle.getInternalScripts();
-    internalScripts.forEach((intScript) => {
-        scripts.push({
-            src: intScript.src,
-            source: intScript.source,
-            type: "internal"
-        });
-    });
+    /* Store the attributeScripts into a file to fix some issues */
+    var htmlEventAttributeScript = htmle.getEventAttributeScript();
+    var scriptPrepend = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, "events_");
+    var filePath = JsEditor.createFile(htmlEventAttributeScript.source, directory, null, scriptPrepend);
 
-    var htmlEventScript = htmle.getEventAttributeScript();
     scripts.push({
-        src: htmlEventScript.src,
-        source: htmlEventScript.source,
+        src: filePath,
+        source: htmlEventAttributeScript.source,
         type: "eventAttributes"
     });
+
     return scripts;
+}
+
+/**
+ * Modifies the project in a way that all scripts tags are uniformal
+ * @param {*} directory the destinationFolder of the project
+ * @param {*} entry the entry file relative to the destinationFolder
+ */
+function normalizeScripts(directory, entry) {
+    var entryFile = path.join(directory, entry);
+
+    var htmle = new HTMLEditor().loadFile(entryFile);
+
+    if (lacunaSettings.CONSIDER_EXTERNALLY_HOSTED_SCRIPTS) {
+        htmle.importExternallyHostedScripts(directory);
+    }
+
+    /* Always on */
+    if (lacunaSettings.EXPORT_INLINE_SCRIPTS || true) {
+        htmle.exportInternalScripts(directory);
+    }
 }
 
 /**
@@ -341,7 +368,7 @@ function retrieveAnalyzers(analyzerNames) {
         try {
             var Analyzer = require(analyzerRequirePath);
             analyzers.push({ name: analyzerName, object: new Analyzer() });
-        } catch (e) { logger.error('Cannot find ' + analyzerRequirePath); }
+        } catch (e) { logger.error('Invalid analyzer module ' + analyzerRequirePath); }
     });
 
     return analyzers;

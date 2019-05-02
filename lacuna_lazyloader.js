@@ -54,38 +54,3 @@ function lacuna_lazy_load(id, callback){
         fs.writeFileSync(path.join(destinationFolder, "lacuna_lazyload_storage.json"), JSON.stringify(this.storage, null, 4), 'utf8');
     }
 }
-
-
-function getLazyLoadServerCode() {
-    return `//Lazy Load Server v0.9
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const app = express();
-const bodyParser = require("body-parser");
-const port = ${settings.LAZY_LOAD_SERVER_PORT};
-
-var lazyloadStorage = JSON.parse(fs.readFileSync(path.join(__dirname, 'lacuna_lazyload_storage.json'), 'utf8'));
-
-app.use(bodyParser.urlencoded({
-    extended: true
-}));
-app.use(bodyParser.json())
-
-
-app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-});
-
-app.post('/lazyload', (req, res) => {
-    var id = req.body.id;
-    var functionBody = lazyloadStorage[id];
-    res.send(functionBody);
-});
-
-app.listen(port, () => {
-    console.log("Lazy load server is listening on port: " + port);
-});`
-}

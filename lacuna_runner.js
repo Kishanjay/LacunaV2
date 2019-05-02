@@ -49,13 +49,22 @@ function startLacuna(runOptions, callback) {
         runOptions.directory = runOptions.destination;
     }
 
+    /* Delete the previous Lacuna output (if present), and create empty dir */
+    var lacunaOutputDir = path.join(runOptions.directory, lacunaSettings.LACUNA_OUTPUT_DIR);
+    if (fs.existsSync(lacunaOutputDir) && fs.lstatSync(lacunaOutputDir).isDirectory()) {
+    logger.verbose("Removing previous Lacuna output");
+        fs.removeSync(lacunaOutputDir); 
+    }
+    fs.ensureDirSync(lacunaOutputDir);
+
     /* Startup lacuna */
     logger.debug("runOptions: " + JSON.stringify(runOptions));
     logger.verbose("Starting Lacuna");
 
     try {
+        /* The part that actually creates and fills the callgraph */
         lacunizer.run(runOptions, (callGraph, analyzerResults) => {            
-            var lacuna_log = { /* built log file */
+            var lacuna_log = { /* the log file */
                 runDate: new Date(),
                 runOptions: runOptions,
                 graphStats: callGraph.getStatistics(),
@@ -70,7 +79,7 @@ function startLacuna(runOptions, callback) {
             var logPath = path.join(runOptions.directory, runOptions.logfile);
             fs.writeFileSync(logPath, JSON.stringify(lacuna_log, null, 4), 'utf8');
 
-            var DOTLogPath = logPath + ".dot";
+            var DOTLogPath = path.join(runOptions.directory, lacunaSettings.LACUNA_OUTPUT_DIR, "callgraph.dot");
             fs.writeFileSync(DOTLogPath, callGraph.getDOT(), 'utf8');
 
             logger.info(`Lacuna finished.\nSee results in: ${logPath}`);
@@ -128,7 +137,11 @@ async function verifyRunOptions(runOptions) {
     if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
         throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
     }
-    if (runOptions.olevel >= 1 && !runOptions.destination) {
+    if (!runOptions.destination &&
+        (runOptions.olevel >= 1 ||
+        lacunaSettings.CONSIDER_EXTERNALLY_HOSTED_SCRIPTS ||
+        lacunaSettings.EXPORT_INLINE_SCRIPTS)
+    ) {
         if (!runOptions.force) { // Show a warning before Lacuna starts modifying files
             var answer = await prompt(`Warning Lacuna will permanently modify "${runOptions.directory}", are you sure you want to continue?`);
             if (!answer || answer != true) { process.exit(1); }        

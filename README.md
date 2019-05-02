@@ -19,6 +19,11 @@ JS files and all inline JS scripts will be considered for optimization.
 
 __Thus all files that are not referenced by the entry file will be skipped__
 
+E.g. `node ./lacuna ./example/test -d ./example/test.output -a static -o 3`
+This command will optimize the source code with strength 3 (powerfull 
+optimization, that will eliminate as much as possible from the source). Whilst
+preserving the original sourceCode since a custom destinationFolder is set.
+
 ### Lazy loading
 Since there is no guarantee Lacuna will not remove a function that isn't really
 dead, Lacuna features a lazyLoading option.
@@ -104,9 +109,10 @@ as well as the inline JS scripts; after which they will be considered for
 optimization.
 
 #### Destination
-By default Lacuna will overwrite the original sourceFolder (IF the optimization
-level is > 0). Setting this option will change the destination folder and 
-preserve the original sourceCode.
+By default Lacuna will be performed on the sourceFolder. Meaning that it will
+actually Modify the original source code. Setting a destination will copy the
+entire project to this folder and do all modifications on that folder instead.
+(preserving the original code).
 
 #### Logfile
 Where the output of Lacuna will be stored. By default in `lacuna.log`
@@ -147,8 +153,8 @@ if you want to use them)
 ## Development
 
 ### Open issues
-- Identifying scripts currently fails when there are (extra?) spaces or line 
-breaks  between the words
+- Identifying scripts within HTML currently fails when there are (extra?) spaces 
+or linebreaks between the words
 
 ### Solved issues
 - The dynamic analyzer that requires a webdriver doesn't seem to load external

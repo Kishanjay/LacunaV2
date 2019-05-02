@@ -29,7 +29,7 @@ module.exports = class JsEditor {
     }
     
     loadFile(filePath) {
-        this.filePath = filePath;
+        this.filePath = filePath; /* relative to pwd */
         this.source = this.originalSource = fs.readFileSync(filePath).toString();
         this.offset = 0;
 
@@ -103,4 +103,28 @@ module.exports = class JsEditor {
     getOriginalSource() {
         return this.originalSource;
     }
+
+    /**
+     * prepend can either be part of the filename or a relativeDir to sourceFolder
+     */
+    static createFile(source, directory, filename = null, prepend = null) {
+        if (!filename) { filename = getRandomFilename(6) + ".js"; }
+        var filePath = prepend + filename;
+        fs.writeFileSync(path.join(directory, filePath), source);
+        return filePath;
+    }
+}
+
+
+/**
+ * Snippet to generate a random filename given a length
+ */
+function getRandomFilename(length) {
+    var text = "";
+    var possible = "abcdefghijklmnopqrstuvwxyz0123456789";
+  
+    for (var i = 0; i < length; i++)
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+  
+    return text;
 }
