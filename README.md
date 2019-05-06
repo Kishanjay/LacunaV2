@@ -82,11 +82,15 @@ considers JavaScript native functions.
 A basic dynamic analyzer that starts up a puppeteer webdriver and marks every
 function that is executed on startup as alive.
 
-##### wala_single
-** todo **
+##### wala
+Based on the internal callgraphs of IBM WALA
 
-##### wala_full
-** todo **
+##### TAJS
+Based on TAJS
+Some notable fixes are:
+by default TAJS stops processing JavaScript files whenever it encounters a console.log
+( maybe also other native JavaScript calls ); thus to bypass this issue TAJS was modified.
+
 
 #### Optimization Level
 After the deadfunctions have been identified, Lacuna can also optimize the 

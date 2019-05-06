@@ -48,6 +48,7 @@ function startLacuna(runOptions, callback) {
         /* the rest of the script will be using this param */
         runOptions.directory = runOptions.destination;
     }
+    runOptions.directory = path.normalize(runOptions.directory);
 
     /* Delete the previous Lacuna output (if present), and create empty dir */
     var lacunaOutputDir = path.join(runOptions.directory, lacunaSettings.LACUNA_OUTPUT_DIR);
@@ -163,6 +164,7 @@ async function verifyRunOptions(runOptions) {
         }
         logger.verbose(`Overwriting output ${runOptions.destination}`);
     }
+    if (runOptions.destination) { runOptions.destination = path.normalize(runOptions.destination); }
     logger.silly("runOptions.destination OK");
 
     return runOptions;

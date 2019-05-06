@@ -292,5 +292,50 @@ module.exports = class CallGraph {
         });
         return rootNodes;
     }
+
+    /**
+     * Converts any kind of nodeData to the expected functionData as
+     * described above.
+     * 
+     * Usecase 1: convert start to range (empty on rootNode)
+     * 
+     * CONVERTS THIS (Doesn't do the file thing yet? see tajs.js)
+     * { caller: { file: '  example/demo.out/fol/script.js',
+     *       start: { line: 18, column: 0 } },
+     *   callee: { file: 'example/demo.out/fol/script.js',
+     *       start: { line: 1, column: 0 } } }
+     * 
+     * TO THIS
+     * { caller: { file: 'fol/script.js', range: [ null, null ] },
+     *   callee: { file: 'fol/script.js', range: [ 0, 32 ] } }
+     */
+    convertToFunctionData(nodeData) {
+        var functionData = {};
+
+        /* copy file */
+        if (nodeData.hasOwnProperty("file")) {
+            functionData.file = nodeData.file;
+        } else { logger.warn("[convertToFunctionData] invalid nodeData", nodeData); }
+
+        /* Fix range based on start */
+        if (!nodeData.hasOwnProperty("range") && nodeData.hasOwnProperty("start")) {
+            var nodes = this.getNodes(true);
+
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+
+                if (node.start.line == nodeData.start.line && node.start.column == nodeData.start.column) {
+                    functionData.range = node.range;
+                    break;
+                }
+            }
+        }
+
+        if (!functionData.hasOwnProperty("range")) {
+            functionData.range = [null, null]; /* rootNode */
+        }
+
+        return functionData;
+    }
 }
 

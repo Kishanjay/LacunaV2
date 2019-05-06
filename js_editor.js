@@ -41,15 +41,17 @@ module.exports = class JsEditor {
         var index = 0;
 
         try {
-            esprima.parse(this.source, { range: true }, (node) => {
+            esprima.parse(this.source, { range: true, loc: true }, (node) => {
                 if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
-                    functionData.push({
+                    var node = {
                         type: node.type,
                         range: node.range,
                         bodyRange: node.body.range,
                         file: this.filePath,
                         index: index++,
-                    });
+                        start: node.loc.start,
+                    };
+                    functionData.push(node);
                 }
             });
         } catch (e) { console.log(e); }
@@ -109,7 +111,8 @@ module.exports = class JsEditor {
      */
     static createFile(source, directory, filename = null, prepend = null) {
         if (!filename) { filename = getRandomFilename(6) + ".js"; }
-        var filePath = prepend + filename;
+        var filePath = filename;
+        if (prepend) { filePath = prepend + filePath; }
         fs.writeFileSync(path.join(directory, filePath), source);
         return filePath;
     }

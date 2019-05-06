@@ -320,11 +320,13 @@ function retrieveScripts(directory, entry) {
 
     /* Store the attributeScripts into a file to fix some issues */
     var htmlEventAttributeScript = htmle.getEventAttributeScript();
-    var scriptPrepend = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, "events_");
-    var filePath = JsEditor.createFile(htmlEventAttributeScript.source, directory, null, scriptPrepend);
+    var filename = "eventAttributes.js";
+    var relPath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR);/* relative to pwd */
+    var fileContent = "/* JS Code that was found on HTML events */\n" + htmlEventAttributeScript.source;
+    JsEditor.createFile(fileContent, relPath, filename);
 
     scripts.push({
-        src: filePath,
+        src: path.join(lacunaSettings.LACUNA_OUTPUT_DIR, filename), /* relative to sourceFolder */
         source: htmlEventAttributeScript.source,
         type: "eventAttributes"
     });
@@ -368,7 +370,10 @@ function retrieveAnalyzers(analyzerNames) {
         try {
             var Analyzer = require(analyzerRequirePath);
             analyzers.push({ name: analyzerName, object: new Analyzer() });
-        } catch (e) { logger.error('Invalid analyzer module ' + analyzerRequirePath); }
+        } catch (e) {
+            console.log(e);
+            logger.error('Invalid analyzer module ' + analyzerRequirePath);
+        }
     });
 
     return analyzers;
