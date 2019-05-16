@@ -312,7 +312,7 @@ function retrieveScripts(directory, entry) {
     var externalScripts = htmle.getExternalScripts();
     externalScripts.forEach((extScript) => {
         scripts.push({
-            src: extScript.src,
+            src: extScript.src, // relative to sourceFolder
             source: extScript.source,
             type: "external"
         });
