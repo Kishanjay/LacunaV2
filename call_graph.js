@@ -300,18 +300,31 @@ module.exports = class CallGraph {
      * Usecase 1: convert start to range (empty on rootNode)
      * 
      * CONVERTS THIS (Doesn't do the file thing yet? see tajs.js)
-     * { caller: { file: '  example/demo.out/fol/script.js',
+     * { file: '  example/demo.out/fol/script.js',
      *       start: { line: 18, column: 0 } },
-     *   callee: { file: 'example/demo.out/fol/script.js',
-     *       start: { line: 1, column: 0 } } }
+     * }
+     * OR
+     * { functionName: 'xxo' }
      * 
      * TO THIS
-     * { caller: { file: 'fol/script.js', range: [ null, null ] },
-     *   callee: { file: 'fol/script.js', range: [ 0, 32 ] } }
+     * { file: 'fol/script.js', range: [ null, null ] }
+     * 
+     * 
+     * Usecase
      */
     convertToFunctionData(nodeData) {
         var functionData = {};
 
+        if (nodeData.hasOwnProperty("functionName")) {
+            var nodes = this.getNodes(true);
+            for (var i = 0; i < nodes.length; i++){
+                if (nodes[i].functionName == nodeData.functionName) {
+                    return { file: nodes[i].file, range: nodes[i].range };
+                }
+            }
+            logger.warn("[convertToFunctionData] invalid functionName ", nodeData.functionName);
+            return;
+        }
         /* copy file */
         if (nodeData.hasOwnProperty("file")) {
             functionData.file = nodeData.file;

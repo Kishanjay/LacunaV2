@@ -43,6 +43,10 @@ module.exports = class JsEditor {
         try {
             esprima.parse(this.source, { range: true, loc: true }, (node) => {
                 if (ESPRIMA_FUNCTION_TYPES.includes(node.type)) {
+                    var functionName = null;
+                    if (node.id && node.id.name) {
+                        functionName = node.id.name;
+                    }
                     var node = {
                         type: node.type,
                         range: node.range,
@@ -50,7 +54,9 @@ module.exports = class JsEditor {
                         file: this.filePath,
                         index: index++,
                         start: node.loc.start,
+                        functionName: functionName,
                     };
+                    
                     functionData.push(node);
                 }
             });

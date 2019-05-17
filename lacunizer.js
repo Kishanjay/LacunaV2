@@ -138,6 +138,7 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
         try {
             /* The analyzers essentially have all project information available */
             analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
+                if (!edges) { edges = []; }
                 analyzerResults.push({
                     analyzer: analyzer.name,
                     edges: edges
