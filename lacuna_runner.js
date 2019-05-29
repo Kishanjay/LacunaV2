@@ -74,6 +74,8 @@ async function run(passedRunOptions, callback){
  * Some things that have to be handled before Lacuna can be ran
  */
 function finalizeRunOptions(runOptions) {
+    if (runOptions.destination) { runOptions.destination = path.normalize(runOptions.destination); }
+
     /* If a destination is chosen (that isnt sourceFolder) copy dir content */
     if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
         fs.copySync(runOptions.directory, runOptions.destination);
@@ -157,18 +159,6 @@ async function verifyRunOptions(runOptions) {
     }
     logger.silly("runOptions.directory OK");
 
-    /* Verify runOptions.analyzer */
-    if (!runOptions.analyzer || runOptions.analyzer.length <= 0) {
-        throw logger.error("Invalid analyzer: " + runOptions.analyzer);
-    }
-    runOptions.analyzer.forEach((analyzer) => {   
-        var analyzerPath = path.join(__dirname, lacunaSettings.ANALYZERS_DIR, analyzer) + ".js";
-        if (!fs.existsSync(analyzerPath)) {
-            throw logger.error("Invalid analyzer: " + analyzer);
-        }
-    });
-    logger.silly("runOptions.analyzer OK");
-
     /* Verify runOptions.entry */
     if (!runOptions.entry) {
         throw logger.error("Invalid entryFile: " + runOptions.entry);
@@ -179,10 +169,17 @@ async function verifyRunOptions(runOptions) {
     }
     logger.silly("runOptions.entry OK");
 
-    /* Verify runOptions.olevel */
-    if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
-        throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
+    /* Verify runOptions.destination */
+    if (runOptions.destination && fs.existsSync(runOptions.destination)) {
+        if (!runOptions.force) { // Show a warning before Lacuna starts overwriting folders
+            var answer = await prompt(`Warning "${runOptions.destination}" already exists, are you sure you want to overwrite?`);
+            if (!answer || answer != true) { process.exit(1); }        
+        }
+        logger.verbose(`Overwriting output ${runOptions.destination}`);
     }
+    logger.silly("runOptions.destination OK");
+
+    /* Check settings that may modify the code */
     if (!runOptions.destination &&
         (runOptions.olevel >= 1 ||
         lacunaSettings.IMPORT_EXTERNALLY_HOSTED_SCRIPTS ||
@@ -194,29 +191,36 @@ async function verifyRunOptions(runOptions) {
         }
         logger.verbose(`Overwriting source ${runOptions.directory}`);
     }
-    logger.silly("runOptions.olevel OK");
-
-    // <Shant be necessary>
-    /* Verify runOptions.logfile */
-    /* Verify runOptions.timeout */
-    /* Verify runOptions.force */
-
-    /* Verify runOptions.destination */
-    if (runOptions.destination && fs.existsSync(runOptions.destination)) {
-        if (!runOptions.force) { // Show a warning before Lacuna starts overwriting folders
-            var answer = await prompt(`Warning "${runOptions.destination}" already exists, are you sure you want to overwrite?`);
-            if (!answer || answer != true) { process.exit(1); }        
-        }
-        logger.verbose(`Overwriting output ${runOptions.destination}`);
-    }
-    if (runOptions.destination) { runOptions.destination = path.normalize(runOptions.destination); }
-    logger.silly("runOptions.destination OK");
-
 
     /* Cannot re-normalize and assume it was already normalize at the same time */
     if (runOptions.normalizeOnly && runOptions.assumeNormalization) {
         throw logger.error("Invalid options: normalizeOnly + assumeNormalization");
     }
+
+    /* STOPS HERE */
+    if (runOptions.normalizeOnly) return;
+
+    /* Verify runOptions.analyzer */
+    if (!runOptions.analyzer || runOptions.analyzer.length <= 0) {
+            throw logger.error("Invalid analyzer: " + runOptions.analyzer);
+    }
+    runOptions.analyzer.forEach((analyzer) => {   
+        var analyzerPath = path.join(__dirname, lacunaSettings.ANALYZERS_DIR, analyzer) + ".js";
+        if (!fs.existsSync(analyzerPath)) {
+            throw logger.error("Invalid analyzer: " + analyzer);
+        }
+    });
+    logger.silly("runOptions.analyzer OK");
+
+    /* Verify runOptions.olevel */
+    if (!lacunaSettings.OPTIMIZATION_LEVELS.includes(runOptions.olevel)) {
+        throw logger.error("Invalid optimizationlevel: " + runOptions.olevel);
+    }
+    logger.silly("runOptions.olevel OK");
+
+    // <Shant be necessary>
+    /* Verify runOptions.logfile */
+    /* Verify runOptions.force */
 
     return runOptions;
 }
