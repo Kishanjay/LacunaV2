@@ -9,20 +9,10 @@ const logger = require("./_logger");
 const lacuna = require("./lacuna_runner");
 const commandLineArgs = require('command-line-args');
 
-/* Default runOptions */
-let runOptions = {
-    // directory obviously has no default
-    analyzer: null,
-    entry: "index.html",
-    destination: null,
-    logfile: "lacuna.log",
-    timeout: null,
-    olevel: 0,
-    force: false
-};
 /* Fetch runOptions from command line */
+let argv = null;
 try {
-    let argv = commandLineArgs([
+    argv = commandLineArgs([
         { name: 'directory', type: String, defaultOption: true }, // obviously has no default option
         { name: 'analyzer', type: String, multiple: true, alias: 'a' },
 
@@ -33,14 +23,14 @@ try {
         { name: 'timeout', type: Number, alias: 't' },
         { name: 'force', type: Boolean, alias: 'f' },
 
-        { name: 'destination', type: String, alias: 'd' }
-    ]);
+        { name: 'destination', type: String, alias: 'd' },
 
-    runOptions.extend(argv);
-} catch (exception) { throw logger.error(exception); }
-if (!runOptions) { throw logger.error("Invalid runOptions"); }
-logger.silly("runOptions OK");
+        { name: 'normalizeOnly', type: Boolean },
+        { name: 'assumeNormalization', type: Boolean }
+    ]);
+} catch (e) { throw logger.error(e); }
+if (!argv) { throw logger.error("Invalid commandLineArgs"); }
 
 /* Actual startup of lacuna */
-try { lacuna.run(runOptions, function(log) { }); }
+try { lacuna.run(argv, function(log) { }); }
 catch (e) { console.log(e); }

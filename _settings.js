@@ -9,7 +9,7 @@ module.exports = {
      * The output dir of Lacuna files, relative to the destination.
      * NOTE that this directory will be removed/cleared on every run of Lacuna
      */
-    LACUNA_OUTPUT_DIR: "lacuna_output",
+    LACUNA_OUTPUT_DIR: "lacuna_cache",
     
     /**
      * Supported optimization levels
@@ -27,15 +27,22 @@ module.exports = {
      * The references in the HTML files will be updated and the local file will
      * be optimized where needed.
      */ 
-    CONSIDER_EXTERNALLY_HOSTED_SCRIPTS: true,
+    IMPORT_EXTERNALLY_HOSTED_SCRIPTS: true,
 
     /**
      * Wether Lacuna should export the inline JS to its own file
      * generally this is a better coding practise
      * 
-     * NOTE: unimplemented (yet)
+     * NOTE: currently always does this (cannot disable)
      */
     EXPORT_INLINE_SCRIPTS: true,
+
+
+    /**
+     * 
+     */
+    EXPORT_EVENT_ATTRIBUTES: true,
+    EVENT_ATTRIBUTES_FILENAME: 'eventAttributes.js',
 
 
     /**

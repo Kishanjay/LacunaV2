@@ -17,12 +17,9 @@ const JsEditor = require("./js_editor"),
     HTMLEditor = require("./html_editor"),
     CallGraph = require("./call_graph"),
     LazyLoader = require("./lacuna_lazyloader");
-
 const lacunaSettings = require("./_settings");
 
-/**
- * Starts up the lacunizer
- */
+
 function run(runOptions, onFinish) {
     /* Creates the complete callgraph using the analyzers */
     createCompleteCallGraph(runOptions, (callGraph, analyzerResults) => {
@@ -123,8 +120,6 @@ function removeFunctionsFromFile(functions, file, runOptions, lazyLoader) {
  * drawn by which analyzer
  */
 function createCompleteCallGraph(runOptions, onCallGraphComplete) {
-    /* Part 0: Download externally hosted scripts & export internal scripts */
-    normalizeScripts(runOptions.directory, runOptions.entry);
     /* Part 1: creating the edgeless callgraph, with every function as a node */
     var scripts = retrieveScripts(runOptions.directory, runOptions.entry);
     var callGraph = new CallGraph(retrieveFunctions(scripts));
@@ -319,41 +314,23 @@ function retrieveScripts(directory, entry) {
         });
     });
 
-    /* Store the attributeScripts into a file to fix some issues */
-    var htmlEventAttributeScript = htmle.getEventAttributeScript();
-    var filename = "eventAttributes.js";
-    var relPath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR);/* relative to pwd */
-    var fileContent = "/* JS Code that was found on HTML events */\n" + htmlEventAttributeScript.source;
-    JsEditor.createFile(fileContent, relPath, filename);
+    try { /* Include the eventAttributes script */
+        if (lacunaSettings.EXPORT_EVENT_ATTRIBUTES) {
+            var ea_path = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, lacunaSettings.EVENT_ATTRIBUTES_FILENAME);
+            var pwd_ea_path = path.join(directory, ea_path); // relative to pwd
 
-    scripts.push({
-        src: path.join(lacunaSettings.LACUNA_OUTPUT_DIR, filename), /* relative to sourceFolder */
-        source: htmlEventAttributeScript.source,
-        type: "eventAttributes"
-    });
+            var ea_source = new JsEditor(pwd_ea_path).getSource();
+            scripts.push({
+                src: ea_path, // relative to sourceFolder
+                source: ea_source,
+                type: "eventAttributes"
+            });
+        }
+    } catch (e) { logger.warn("[retrieveScripts] eventattribs: " + e); }
 
     return scripts;
 }
 
-/**
- * Modifies the project in a way that all scripts tags are uniformal
- * @param {*} directory the destinationFolder of the project
- * @param {*} entry the entry file relative to the destinationFolder
- */
-function normalizeScripts(directory, entry) {
-    var entryFile = path.join(directory, entry);
-
-    var htmle = new HTMLEditor().loadFile(entryFile);
-
-    if (lacunaSettings.CONSIDER_EXTERNALLY_HOSTED_SCRIPTS) {
-        htmle.importExternallyHostedScripts(directory);
-    }
-
-    /* Always on */
-    if (lacunaSettings.EXPORT_INLINE_SCRIPTS || true) {
-        htmle.exportInternalScripts(directory);
-    }
-}
 
 /**
  * Retrieves the analyzer objects

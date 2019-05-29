@@ -95,6 +95,7 @@ function tajsToLacunaFormatter(output) {
             logger.warn("[tajsToLacunaFormatter] invalid line: ", line);
             continue;
         }
+        // (valid) callerLine
         var matches = line.match(/(?<scriptSrc>.+):(?<line>[0-9]+):(?<column>[0-9]+)/);
         if (!matches) continue;
         var groups = matches.groups;

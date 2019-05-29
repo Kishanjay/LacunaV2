@@ -9,8 +9,7 @@
 const path = require("path"),
 	child_process = require("child_process");
 
-module.exports = function()
-{
+module.exports = function() {
 	this.run = function(runOptions, callGraph, scripts, callback) {
 		var entryFile = path.join(runOptions.directory, runOptions.entry);
 		

@@ -54,6 +54,9 @@ module.exports = class HTMLEditor {
         return scripts;
     }
 
+    /**
+     * Gets all code inbetween the eventAttributes
+     */
     getEventAttributeScript() {
         var eventAttributeScriptContent = "";
         var htmlEventAttributes = getHtmlEventAttributes();
@@ -108,7 +111,7 @@ module.exports = class HTMLEditor {
             if (isExternallyHosted(scriptSrc)) {
 
                 /* Download the online script and update all references */
-                scriptSrc = importExternallyHostedScript(directory, scriptSrc);
+                scriptSrc = this.importExternallyHostedScript(directory, cScriptElement);
                 logger.verbose("Importing script " + scriptSrc);
             }
         });
@@ -121,18 +124,19 @@ module.exports = class HTMLEditor {
      * Then it updates all references in the current file to use the local
      * version of the script
      */
-    importExternallyHostedScript(directory, scriptSrc) {
-        if (!isExternallyHosted(scriptSrc)) { logger.error("Invalid action"); }; 
+    importExternallyHostedScript(directory, cScriptElement) {
+        var scriptSrc = cScriptElement.attribs["src"];
         logger.verbose(`Downloading ${scriptSrc}`);
-                
+
         var onlineScriptContent = downloadFileSync(scriptSrc);
         var downloadedFileName = "imported_" + path.basename(scriptSrc);
-        var localFilePath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
-        fs.writeFileSync(localFilePath, onlineScriptContent);
+        var pwdFilePath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
+        fs.writeFileSync(pwdFilePath, onlineScriptContent);
 
         /* Update reference in HTML file */
         var oldReference = this.html.html(cScriptElement);
-        var newReference = `<script src="${downloadedFileName}"></script>`;
+        var relScriptSrc = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
+        var newReference = `<script src="${relScriptSrc}"></script>`;
         this.updateCode(oldReference, newReference);
         this.saveFile();
 

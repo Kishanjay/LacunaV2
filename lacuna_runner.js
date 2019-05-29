@@ -15,6 +15,7 @@ require("./prototype_extension");
 
 const logger = require("./_logger");
 const lacunizer = require("./lacunizer");
+const lacunaNormalizer = require("./lacuna_normalizer");
 
 const fs = require('fs-extra'),
     path = require('path'),
@@ -22,25 +23,57 @@ const fs = require('fs-extra'),
 
 const lacunaSettings = require("./_settings");
 
+/* Default run options */
+let runOptions = {
+    analyzer: null,
+    entry: "index.html",
+    destination: null,
+    logfile: "lacuna.log",
+    timeout: null,
+    olevel: 0,
+    force: false,
 
-function run(runOptions, callback){
+    /* debug options */
+    normalizeOnly: false, /* TODO cannot be used icw assumeNormalization */
+    assumeNormalization: false /* TODO only makes sense if there is a complete lacuna cache present */
+};
+
+
+async function run(passedRunOptions, callback){
     if (!runOptions) { throw logger.error("Invalid runOptions"); }
+    runOptions.extend(passedRunOptions); /* extend default with new options */
 
-    /* Verify all runtime options */
-    verifyRunOptions(runOptions)
-        .catch((verifyError) => { process.exit(1); })
-        .then((runOptions) => {
-            startLacuna(runOptions, callback);
-        })
-        .catch((error) => { logger.error(error); });
+    try { /* Verify all runtime options */
+        await verifyRunOptions(runOptions);
+    } catch (e) { process.exit(1); }
+    logger.debug("runOptions verified");
+
+    try { /* Setup before running Lacuna */
+        finalizeRunOptions(runOptions);
+    } catch (e) { logger.error(e); process.exit(1); }
+    logger.debug("runOptions: " + JSON.stringify(runOptions));
+
+
+    /* Normalize scripts to work with Lacuna */
+    if (!runOptions.assumeNormalization) {
+        lacunaNormalizer(runOptions.directory, runOptions.entry);
+        if (runOptions.normalizeOnly) {
+            logger.info("Lacuna Normalization-Only Complete");
+            return callback(null);
+        }
+
+    }
+
+    logger.verbose("Starting Lacuna");
+    startLacuna(runOptions, callback);
+    
+    
 }
 
 /**
- * Starting Lacuna (after the runOptions have been verified)
+ * Some things that have to be handled before Lacuna can be ran
  */
-function startLacuna(runOptions, callback) {
-    logger.debug("runOptions verified");
-
+function finalizeRunOptions(runOptions) {
     /* If a destination is chosen (that isnt sourceFolder) copy dir content */
     if (runOptions.destination && (runOptions.destination != runOptions.directory)) {
         fs.copySync(runOptions.directory, runOptions.destination);
@@ -50,21 +83,33 @@ function startLacuna(runOptions, callback) {
     }
     runOptions.directory = path.normalize(runOptions.directory);
 
-    /* Delete the previous Lacuna output (if present), and create empty dir */
+
+    /* Verify it was a valid assumption */
     var lacunaOutputDir = path.join(runOptions.directory, lacunaSettings.LACUNA_OUTPUT_DIR);
-    if (fs.existsSync(lacunaOutputDir) && fs.lstatSync(lacunaOutputDir).isDirectory()) {
-    logger.verbose("Removing previous Lacuna output");
-        fs.removeSync(lacunaOutputDir); 
+    if (runOptions.assumeNormalization) {
+        if (!fs.existsSync(lacunaOutputDir) || !fs.lstatSync(lacunaOutputDir).isDirectory()) {
+            throw logger.error("No valid normalization found");
+        }
     }
+    /**
+     * Delete the previous Lacuna output (if present), and create empty dir 
+     */
+    else if (fs.existsSync(lacunaOutputDir) && fs.lstatSync(lacunaOutputDir).isDirectory()) {
+        logger.verbose("Removing previous Lacuna output");
+        fs.removeSync(lacunaOutputDir);
+    }
+
+    /* Create the output folder if it doesn't exist */
     fs.ensureDirSync(lacunaOutputDir);
+}
 
-    /* Startup lacuna */
-    logger.debug("runOptions: " + JSON.stringify(runOptions));
-    logger.verbose("Starting Lacuna");
-
+/**
+ * Starts Lacuna
+ */
+function startLacuna(runOptions, callback) {
     try {
         /* The part that actually creates and fills the callgraph */
-        lacunizer.run(runOptions, (callGraph, analyzerResults) => {            
+        lacunizer.run(runOptions, (callGraph, analyzerResults) => {  
             var lacuna_log = { /* the log file */
                 runDate: new Date(),
                 runOptions: runOptions,
@@ -89,8 +134,8 @@ function startLacuna(runOptions, callback) {
         });   
         
     } catch (error) {
-        console.log("Catch run");
-        console.log(error);
+        logger.error(error);
+        callback(null);
     }
 }
 
@@ -140,7 +185,7 @@ async function verifyRunOptions(runOptions) {
     }
     if (!runOptions.destination &&
         (runOptions.olevel >= 1 ||
-        lacunaSettings.CONSIDER_EXTERNALLY_HOSTED_SCRIPTS ||
+        lacunaSettings.IMPORT_EXTERNALLY_HOSTED_SCRIPTS ||
         lacunaSettings.EXPORT_INLINE_SCRIPTS)
     ) {
         if (!runOptions.force) { // Show a warning before Lacuna starts modifying files
@@ -166,6 +211,12 @@ async function verifyRunOptions(runOptions) {
     }
     if (runOptions.destination) { runOptions.destination = path.normalize(runOptions.destination); }
     logger.silly("runOptions.destination OK");
+
+
+    /* Cannot re-normalize and assume it was already normalize at the same time */
+    if (runOptions.normalizeOnly && runOptions.assumeNormalization) {
+        throw logger.error("Invalid options: normalizeOnly + assumeNormalization");
+    }
 
     return runOptions;
 }
