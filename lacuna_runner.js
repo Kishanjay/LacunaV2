@@ -45,12 +45,12 @@ async function run(passedRunOptions, callback){
 
     try { /* Verify all runtime options */
         await verifyRunOptions(runOptions);
-    } catch (e) { process.exit(1); }
+    } catch (e) { return callback(null); }
     logger.debug("runOptions verified");
 
     try { /* Setup before running Lacuna */
         finalizeRunOptions(runOptions);
-    } catch (e) { logger.error(e); process.exit(1); }
+    } catch (e) { logger.error(e); return callback(null); }
     logger.debug("runOptions: " + JSON.stringify(runOptions));
 
 

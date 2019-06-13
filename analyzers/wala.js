@@ -6,15 +6,20 @@
  * @repository https://github.com/Kishanjay/WALA-JSONCallGraph
  */
 
-const path = require("path"),
-	child_process = require("child_process");
+const path = require("path");
+const child_process = require("child_process");
+
+const logger = require("../_logger");
+const lacunaSettings = require("../_settings");
+
 
 module.exports = function() {
 	this.run = function(runOptions, callGraph, scripts, callback) {
 		var entryFile = path.join(runOptions.directory, runOptions.entry);
 		
-		walaAnalyzer(entryFile, edges => {
+		walaAnalyzer(entryFile, (edges) => {
 			/* {caller: {file, start, end}, callee: {file, start, end} } */
+			if (!edges) edges = [];
 			edges.forEach(function (edge) {
 				edge.caller.file = path.normalize(edge.caller.file);
 				edge.callee.file = path.normalize(edge.callee.file);
@@ -41,14 +46,33 @@ module.exports = function() {
  * Actually running the WALA analyzer
  */
 function walaAnalyzer(file, callback) {
-	let command = 'java -jar ./analyzers/WALA/JSONCallGraph.jar ' + file;
+	var jarFile = path.join(__dirname, 'wala', 'JSONCallGraph.jar');
+	let command = 'java -jar ' + jarFile + ' ' + file;
 	let settings = {
-		maxBuffer: 1024 * 1000 * 1000	// 1 GB
+		maxBuffer: 1024 * 1000 * 1000,	// 1 GB
+		timeout: lacunaSettings.ANALYZER_TIMEOUT
 	};
 
 	// Run the WALA jar.
 	child_process.exec(command, settings, function (error, stdout, stderr) {
-		var edges = JSON.parse(stdout);
+		if (error) {
+			logger.error("Analyser[WALA] timeout");
+		}
+		let walaOutput = cleanWalaOutput(stdout);
+		if (!walaOutput) { return callback(null); }
+		var edges = JSON.parse(walaOutput);
 		callback(edges);
 	});
+}
+
+
+function cleanWalaOutput(stdout) {
+	let lines = stdout.split("\n");
+
+	for (let i = 0; i < lines.length; i++) {
+		let line = lines[i].trim();
+		if (line[0] == '[' && line[line.length - 1] == ']') return lines[i];
+	}
+	
+	return null;
 }

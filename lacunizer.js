@@ -119,37 +119,28 @@ function removeFunctionsFromFile(functions, file, runOptions, lazyLoader) {
  * @param analyzerResults contains information about which edges were 
  * drawn by which analyzer
  */
-function createCompleteCallGraph(runOptions, onCallGraphComplete) {
+async function createCompleteCallGraph(runOptions, onCallGraphComplete) {
     /* Part 1: creating the edgeless callgraph, with every function as a node */
     var scripts = retrieveScripts(runOptions.directory, runOptions.entry);
     var callGraph = new CallGraph(retrieveFunctions(scripts));
 
     /* Part 2: running every analyzer to create edges in the callgraph */
-    var analyzerResults = [];
     var analyzers = retrieveAnalyzers(runOptions.analyzer);
-    var analyzersCompleted = {};
-    analyzers.forEach((analyzer) => {
-        analyzersCompleted[analyzer.name] = false;
-        try {
-            /* The analyzers essentially have all project information available */
-            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
-                if (!edges) { edges = []; }
-                analyzerResults.push({
-                    analyzer: analyzer.name,
-                    edges: edges
-                });
-    
-                logger.silly(`Analyzer[${analyzer.name}] aliveFunctions: ${edges.length}`)
-                completeAnalyzer(analyzer); /* NOTE: this call is async cuz of callback */
-            });
-        }
-        catch (error) {
-            logger.warn(`Analyzer[${analyzer.name}] failed`);
-            console.log(error);   
-            completeAnalyzer(analyzer);
-        }
+    var analyzerResults = [];
+    var analyzersCompleted = {}; // wait for all analyzers to be finished
 
-    });
+    for (var analyzer of analyzers) {
+        analyzersCompleted[analyzer.name] = false;
+        
+        try {
+            var analyzerResult = await runAnalyzer(analyzer, runOptions, callGraph, scripts);
+            analyzerResults.push(analyzerResult);
+        }
+        catch (e) {
+            logger.warn(`Analyzer[${analyzer.name}] failed`);
+            console.log(e);
+        } finally { completeAnalyzer(analyzer); }
+    }
 
     /**
      * Part 3: (not really part 3, more like a part 2+)
@@ -160,6 +151,8 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
     function completeAnalyzer(analyzer) {
         logger.info(`Analyzer[${analyzer.name}] finished`);
         analyzersCompleted[analyzer.name] = true;
+        console.log(analyzers);
+        console.log(analyzersCompleted);
 
         /* Only do callback when each analyzer either completed or failed */
         if (Object.keys(analyzersCompleted).length != analyzers.length) { return; }
@@ -169,6 +162,24 @@ function createCompleteCallGraph(runOptions, onCallGraphComplete) {
         logger.verbose(`CallGraph creation completed`);
         return onCallGraphComplete(callGraph, analyzerResults);
     }
+}
+
+
+function runAnalyzer(analyzer, runOptions, callGraph, scripts) {
+    return new Promise((resolve, reject) => {
+        try {
+            /* The analyzers essentially have all project information available */
+            analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
+                if (!edges) { edges = []; }
+    
+                logger.silly(`Analyzer[${analyzer.name}] aliveFunctions: ${edges.length}`)
+                resolve({
+                    analyzer: analyzer.name,
+                    edges: edges
+                });
+            });
+        } catch (e) { reject(e); } 
+    });
 }
 
 

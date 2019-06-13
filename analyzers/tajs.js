@@ -40,7 +40,7 @@ module.exports = function()
  * also converts the TAJS output to edges
  */
 function tajsAnalyzer(file, callback) {
-    let command = 'java -jar analyzers/TAJS/tajs-all.jar -quiet -callgraph ' + file;
+    let command = 'java -jar analyzers/tajs/tajs-all.jar -quiet -callgraph ' + file;
 	let settings = {
 		maxBuffer: 1024 * 1000 * 1000	// 1 GB
 	};

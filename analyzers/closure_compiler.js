@@ -27,7 +27,8 @@ const path = require("path"),
 	child_process = require("child_process");
 
 module.exports = function () {
-    this.run = function(runOptions, callGraph, scripts, callback) {
+    this.run = function (runOptions, callGraph, scripts, callback) {
+
         closeCompilerAnalyzer(runOptions, scripts, function (edges) {
 
             edges.forEach(function (edge) {
@@ -58,16 +59,21 @@ module.exports = function () {
  * also converts the TAJS output to edges
  */
 function closeCompilerAnalyzer(runOptions, scripts, callback) {
-    // relative to pwd 
     var scriptSrc = scripts.map(s => { return path.join(runOptions.directory, s.src); }).join(" ");
-    let command = 'java -jar analyzers/closure_compiler/closure-compiler-1.0-SNAPSHOT.jar --js ' + scriptSrc;
+    var jarFile = path.join(__dirname, 'closure_compiler', 'closure-compiler-1.0-SNAPSHOT.jar');
+    let command = 'java -jar ' + jarFile + ' --js ' + scriptSrc;
     let settings = {
         maxBuffer: 1024 * 1000 * 1000	// 1 GB
     };
 
     child_process.exec(command, settings, function (error, stdout, stderr) {
-        var edges = closureCompilerToLacunaFormatter(stdout);
-        callback(edges);
+        try {
+            var edges = closureCompilerToLacunaFormatter(stdout);
+            callback(edges);
+        } catch (e) {
+            console.log(e);
+            callback(null);
+        }
     });
 }
 
@@ -116,13 +122,23 @@ function closureCompilerToLacunaFormatter(output) {
 
 /**
  * Converts a path relative to pwd to a path relative to the sourceDirectory
+ * thus remove the irrelevant pwd path before the sourceDirectory
+ * 
+ * NOTE: the file detected by closure_compiler can also be
+ * [synthetic:util/polyfill]
+ * [synthetic:es6/symbol]
+ * [synthetic:util/findinternal]
+ * ...
+ * ..
  */
 function getSrcPath(pwdPath, runOptions) {
     var srcPath = path.normalize(pwdPath).trim();
+    if (srcPath[0] == '[') { return runOptions.entry; } // exceptions
+
     var dir = runOptions.directory; /* already normalized */
 
     if (dir != srcPath.slice(0, dir.length)) {
-        logger.warn("[getSrcPath] invalid path: ", getSrcPath);
+        console.log("[getSrcPath] invalid path: ", srcPath, dir);
     }
     return srcPath.slice(dir.length + 1);
 }

@@ -58,7 +58,7 @@ index 164e1f494..ab133242f 100644
      <guava.version>20.0</guava.version>
      <protobuf.version>3.0.2</protobuf.version>
 diff --git a/src/com/google/javascript/jscomp/AbstractCommandLineRunner.java b/src/com/google/javascript/jscomp/AbstractCommandLineRunner.java
-index 9b11a0018..447bbd387 100644
+index 9b11a0018..22b626279 100644
 --- a/src/com/google/javascript/jscomp/AbstractCommandLineRunner.java
 +++ b/src/com/google/javascript/jscomp/AbstractCommandLineRunner.java
 @@ -19,6 +19,8 @@ package com.google.javascript.jscomp;
@@ -164,7 +164,7 @@ index 9b11a0018..447bbd387 100644
 +	}
 +
 +	Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-+	
++
 +	System.out.println(gson.toJson(jsonEntity));
 +//	cfgFile.print(gson.toJson(jsonEntity));
 +//	cfgFile.close();
