@@ -9,8 +9,9 @@
 
 require('./native_extentions');
 
-let file_system = require('fs'),
-    esprima = require('esprima');
+const file_system = require('fs'),
+	esprima = require('esprima'),
+path = require("path");
 
 
 
@@ -20,11 +21,13 @@ module.exports = function()
 	this.source = null;
 	this.original_source = null;
 	this.functions = null;
+	this.dstFolder = null; // source folder of the project
  
 
 
-	this.load = function(file_name, source)
+	this.load = function(file_name, source, dstFolder)
 	{
+		this.dstFolder = dstFolder;
 		if(file_name)
 		{
 			this.file_name = file_name;
@@ -43,7 +46,7 @@ module.exports = function()
 			return;
 		}
 
-		file_system.writeFileSync( this.file_name, this.source );
+		file_system.writeFileSync( path.join(this.dstFolder, this.file_name), this.source );
 	};
 
 

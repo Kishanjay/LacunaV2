@@ -99,9 +99,11 @@ module.exports = class CallGraph {
         if (this.fitsRootNode(functionDataCaller) && !this.getRootNode(functionDataCaller)) {
             this.rootNodes.push(new Node(functionDataCaller));
         }
+        
         var caller = this.getNode(functionDataCaller);
         var callee = this.getNode(functionDataCallee);
 
+        if (!caller || !callee) { return null; }
         return caller.addEdge(callee, analyzer, stripObject);
     }
 
@@ -128,7 +130,6 @@ module.exports = class CallGraph {
             if (node.functionData.file == functionData.file &&
                 node.functionData.range[0] == functionData.range[0] &&
                 node.functionData.range[1] == functionData.range[1]) {
-                
                 return node;
             }
         };
@@ -170,6 +171,7 @@ module.exports = class CallGraph {
      * If some functionData fits the rootNode constraints
      */
     fitsRootNode(functionData) {
+        if (!functionData) { return false; }
         return (functionData.range[0] == null && functionData.range[0] == null)
     }
 
@@ -177,6 +179,7 @@ module.exports = class CallGraph {
      * If some functionData fits the node constraints.
      */
     fitsNode(functionData) {
+        if (!functionData) { return false; }
         return (functionData.range[0] != null && functionData.range[1] != null);
     }
 

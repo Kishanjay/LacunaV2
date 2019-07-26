@@ -11,7 +11,12 @@ const path = require("path"),
 module.exports = function () {
     this.run = function (runOptions, callGraph, scripts, callback) {
         
-        var scriptSrcs = scripts.map(s => { return path.join(runOptions.directory, s.src); });
+        // scripts are extracted from the entry file. Therefore its relative path is relative to the entry path.
+
+        let scriptSrcs = scripts.map(s => {
+            let entryDir = path.dirname(path.join(runOptions.directory, runOptions.entry));
+            return path.join(entryDir, s.src);
+        });
         acgAnalyzer.run(scriptSrcs, function (acgEdges) {
             var edges = acgToLacunaFormatter(acgEdges);
 
@@ -69,7 +74,9 @@ function acgToLacunaFormatter(acgEdges) {
 
     acgEdges.forEach(acgEdge => {
         var edge = convertAcgEdge(acgEdge);
-        edges.push(edge);
+        if (edge) {
+            edges.push(edge);   
+        }
     });
 
     /**
@@ -80,6 +87,7 @@ function acgToLacunaFormatter(acgEdges) {
      */
     function convertAcgEdge(acgEdge) {
         var match = acgEdge.match(/(?<callerFile>.*)@[0-9]+:(?<callerRange0>[0-9]+)\-(?<callerRange1>[0-9]+) -> (?<calleeFile>.*)@[0-9]+:(?<calleeRange0>[0-9]+)\-(?<calleeRange1>[0-9]+)/);
+        if (!match) return null;
         var groups = match.groups;
         var caller = { file: groups.callerFile, range: [match.groups.callerRange0, match.groups.callerRange1] };
         var callee = { file: groups.calleeFile, range: [match.groups.calleeRange0, match.groups.calleeRange1] };

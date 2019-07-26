@@ -9,32 +9,51 @@ module.exports = function () {
             if (script.source.length > 1) { return script; }
         })
 
-        if (relevantScripts.length > 1) {
-            logger.warn("[npm-cg] error - doesn't support multiple scripts");
-            return callback(null);
-        }
+        /**
+         *  npm_cg cannot run outside its own cwd.. :( 
+         * therefore this ugly mitigation is required.
+         */
+        var cwd = process.cwd();
+        var analyzerDir = path.join(__dirname, '/npm_cg/callgraph/');
+        process.chdir(analyzerDir);
+
+        var edges = [];
+        // outer loop should happen more than once
+        relevantScripts.forEach(relevantScript => {
+            var scriptSrc = path.join(runOptions.directory, relevantScript.src);
+
+            npmCgAnalyzer(scriptSrc, cwd, function (npmCgEdges) { // callback function
+                var scriptEdges = [];
+                npmCgEdges = JSON.parse(npmCgEdges);
+
+                npmCgEdges.forEach(npmCgEdge => {
+                    var callerGroups = getGroups(npmCgEdge.caller);
+                    var calleeGroups = getGroups(npmCgEdge.callee);
+                    
+                    var file = relevantScript.src;
+                    var caller = {file: file, range: [null, null]};
+                    if (callerGroups.functionName) {
+                        callGraph.convertToFunctionData({functionName: calleeGroups.functionName});
+                    }
+                    var callee = callGraph.convertToFunctionData({functionName: calleeGroups.functionName});
     
-        var scriptSrc = path.join(runOptions.directory, relevantScripts[0].src);
-        npmCgAnalyzer(scriptSrc, function (npmCgEdges) {
-            npmCgEdges = JSON.parse(npmCgEdges);
-            var edges = [];
+                    var edge = callGraph.addEdge(caller, callee, "npm_cg", true);
+                    scriptEdges.push(edge);
+                });
 
-            npmCgEdges.forEach(npmCgEdge => {
-                var callerGroups = getGroups(npmCgEdge.caller);
-                var calleeGroups = getGroups(npmCgEdge.callee);
-                
-                var file = relevantScripts[0].src;
-                var caller = {file: file, range: [null, null]};
-                if (callerGroups.functionName) {
-                    callGraph.convertToFunctionData({functionName: calleeGroups.functionName});
+                edges.push({ script: scriptSrc, edges: scriptEdges });
+
+                // check if done
+                if (edges.length == relevantScripts.length) {
+                    var edgesResult = [];
+                    edges.forEach(scriptResult => {
+                        edgesResult = edgesResult.concat(scriptResult.edges);
+                    });
+
+                    process.chdir(cwd);
+                    return callback(edgesResult);
                 }
-                var callee = callGraph.convertToFunctionData({functionName: calleeGroups.functionName});
-
-                var edge = callGraph.addEdge(caller, callee, "npm_cg", true);
-                edges.push(edge);
             });
-
-            return callback(edges);
         });
     }
 }
@@ -43,17 +62,16 @@ function getGroups(str) {
     return str.match(/\[(?<filename>.+)\](?<functionName>.*)/).groups;
 }
 
-function npmCgAnalyzer(scriptSrc, callback) {
-    let command = 'node  ./index.js ../../../' + scriptSrc;
+function npmCgAnalyzer(scriptSrc, cwd, callback) {
+    let relativePath = path.relative(process.cwd(), cwd);
+    let command = 'node  ./index.js ' + path.join(relativePath,scriptSrc);
+    
     let settings = {
         // cwd: './analzers/npm_cg/callgraph',
 		maxBuffer: 1024 * 1000 * 1000	// 1 GB
 	};
-
-    var cwd = process.cwd();
-    process.chdir('./analyzers/npm_cg/callgraph/');
     child_process.exec(command, settings, function (error, stdout, stderr) {
-        process.chdir(cwd);
+        console.log(error, stderr);
         callback(stdout);
 	});
 }

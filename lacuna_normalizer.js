@@ -38,7 +38,7 @@ function normalizeScripts(directory, entry) {
 
     /* Always on */
     if (lacunaSettings.EXPORT_INLINE_SCRIPTS || true) {
-        htmle.exportInternalScripts(directory);
+        htmle.exportInternalScripts(directory, entry);
     }
 
     /* Export the eventAttributes to its own script */

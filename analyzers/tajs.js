@@ -15,8 +15,10 @@ module.exports = function()
 		var entryFile = path.join(runOptions.directory, runOptions.entry);
 		
 		tajsAnalyzer(entryFile, edges => {
-			/* {caller: {file, start}, callee: {file, start} } */
+        /* {caller: {file, start}, callee: {file, start} } */
+            
             edges.forEach(function (edge) {
+                if (!edge.caller || !edge.callee) { return; }
                 /* Creates a valid relativePath to sourceDir (instead of pwd)*/
                 edge.caller.file = getSrcPath(edge.caller.file, runOptions);
                 edge.callee.file = getSrcPath(edge.callee.file, runOptions);
@@ -40,13 +42,15 @@ module.exports = function()
  * also converts the TAJS output to edges
  */
 function tajsAnalyzer(file, callback) {
-    let command = 'java -jar analyzers/tajs/tajs-all.jar -quiet -callgraph ' + file;
+    var jarFile = path.join(__dirname, 'tajs', 'tajs-all.jar');
+    let command = 'java -jar ' + jarFile +  ' -quiet -callgraph ' + file;
 	let settings = {
 		maxBuffer: 1024 * 1000 * 1000	// 1 GB
 	};
 
     console.log(command);
     child_process.exec(command, settings, function (error, stdout, stderr) {
+        console.log(error, stderr);
         var edges = tajsToLacunaFormatter(stdout);
 		callback(edges);
 	});
@@ -92,7 +96,7 @@ function tajsToLacunaFormatter(output) {
             continue;    
         }
         else if (!isCallerLine(line)) {
-            logger.warn("[tajsToLacunaFormatter] invalid line: ", line);
+            console.log("[tajsToLacunaFormatter] invalid line: ", line);
             continue;
         }
         // (valid) callerLine
@@ -125,7 +129,7 @@ function getSrcPath(pwdPath, runOptions) {
     var dir = runOptions.directory; /* already normalized */
 
     if (dir != srcPath.slice(0, dir.length)) {
-        logger.warn("[getSrcPath] invalid path: ", getSrcPath);
+        console.log("[getSrcPath] invalid path: ", srcPath);
     }
     return srcPath.slice(dir.length + 1);
 }

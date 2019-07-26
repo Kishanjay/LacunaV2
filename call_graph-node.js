@@ -40,6 +40,7 @@ module.exports = class Node {
      */
     addConnectedNodes(connectedNodes, stripObject) {
         this.edges.forEach((edge) => {
+            // if (!edge.callee || !edge.caller) { return; }
             var callee = edge.callee;
             if (stripObject) { callee = callee.functionData; }
 

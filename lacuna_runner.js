@@ -23,24 +23,23 @@ const fs = require('fs-extra'),
 
 const lacunaSettings = require("./_settings");
 
-/* Default run options */
-let runOptions = {
-    analyzer: null,
-    entry: "index.html",
-    destination: null,
-    logfile: "lacuna.log",
-    timeout: null,
-    olevel: 0,
-    force: false,
+async function run(passedRunOptions, callback) {
+    /* Default run options */
+    let runOptions = {
+        analyzer: null,
+        entry: "index.html",
+        destination: null,
+        logfile: "lacuna.log",
+        timeout: null,
+        olevel: 0,
+        force: false,
 
-    /* debug options */
-    normalizeOnly: false, /* TODO cannot be used icw assumeNormalization */
-    assumeNormalization: false /* TODO only makes sense if there is a complete lacuna cache present */
-};
-
-
-async function run(passedRunOptions, callback){
-    if (!runOptions) { throw logger.error("Invalid runOptions"); }
+        /* debug options */
+        normalizeOnly: false, /* TODO cannot be used icw assumeNormalization */
+        assumeNormalization: false /* TODO only makes sense if there is a complete lacuna cache present */
+    };
+    
+    if (!passedRunOptions) { throw logger.error("Invalid runOptions"); }
     runOptions.extend(passedRunOptions); /* extend default with new options */
 
     try { /* Verify all runtime options */
@@ -52,7 +51,6 @@ async function run(passedRunOptions, callback){
         finalizeRunOptions(runOptions);
     } catch (e) { logger.error(e); return callback(null); }
     logger.debug("runOptions: " + JSON.stringify(runOptions));
-
 
     /* Normalize scripts to work with Lacuna */
     if (!runOptions.assumeNormalization) {
@@ -90,6 +88,8 @@ function finalizeRunOptions(runOptions) {
     var lacunaOutputDir = path.join(runOptions.directory, lacunaSettings.LACUNA_OUTPUT_DIR);
     if (runOptions.assumeNormalization) {
         if (!fs.existsSync(lacunaOutputDir) || !fs.lstatSync(lacunaOutputDir).isDirectory()) {
+            console.log(lacunaOutputDir)
+            console.log(runOptions);
             throw logger.error("No valid normalization found");
         }
     }
@@ -123,7 +123,7 @@ function startLacuna(runOptions, callback) {
                 affectedFiles: callGraph.getRootNodes(true)
             };
         
-            /* write log */
+            /* write log (should create file if not exists) */
             var logPath = path.join(runOptions.directory, runOptions.logfile);
             fs.writeFileSync(logPath, JSON.stringify(lacuna_log, null, 4), 'utf8');
 

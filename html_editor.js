@@ -164,11 +164,19 @@ module.exports = class HTMLEditor {
             var filePath = path.join(directory, relativeFilePath); /* relative to pwd */
             fs.writeFileSync(filePath, inlineScriptContent);
 
+            /* Since the lacuna_cache resides at the framework directory level, references should take it into account */
+            var relativePathDifference = path.relative(directory, entryFile);
+            var numberOfNestedDirectories = relativePathDifference.split("/").length - 1; // counts the number of directories between the directory and the entry file
+            var relDirFix = "../".repeat(numberOfNestedDirectories);
+
             /* Update the reference */
             var oldReference = this.html.html(cScriptElement);
-            var newReference = `<script src="${relativeFilePath}"></script>`;
+            var newReference = `<script src="${path.join(relDirFix, relativeFilePath)}"></script>`;
             this.updateCode(oldReference, newReference);
             this.saveFile();
+
+
+            
         });
     }
 }

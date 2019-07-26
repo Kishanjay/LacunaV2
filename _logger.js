@@ -12,9 +12,9 @@ const logger = winston.createLogger({
     level: 'silly',
     format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
     transports: [new winston.transports.Console()],
-    exceptionHandlers: [
-        new winston.transports.File({ filename: 'exceptions.log' })
-    ],
+    // exceptionHandlers: [
+    //     new winston.transports.File({ filename: 'exceptions.log' })
+    // ],
     exitOnError: true
 });
 

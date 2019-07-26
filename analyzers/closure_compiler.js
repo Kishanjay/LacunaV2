@@ -30,9 +30,9 @@ module.exports = function () {
     this.run = function (runOptions, callGraph, scripts, callback) {
 
         closeCompilerAnalyzer(runOptions, scripts, function (edges) {
-
+            if (!edges) { return callback(edges); }
             edges.forEach(function (edge) {
-                /* Convert the nodeData to functionData */
+            /* Convert the nodeData to functionData */
                 edge.caller = callGraph.convertToFunctionData(edge.caller);
                 edge.callee = callGraph.convertToFunctionData(edge.callee);
 
@@ -43,10 +43,10 @@ module.exports = function () {
                     edge.caller.file = getSrcPath(edge.caller.file, runOptions);
                 }
                 edge.callee.file = getSrcPath(edge.callee.file, runOptions);
-                
+
                 callGraph.addEdge(edge.caller, edge.callee, "closure_compiler");
             });
-                
+            
             callback(edges);
         });
     }
@@ -66,14 +66,14 @@ function closeCompilerAnalyzer(runOptions, scripts, callback) {
         maxBuffer: 1024 * 1000 * 1000	// 1 GB
     };
 
+    function onResult(stdout) {
+        var edges = closureCompilerToLacunaFormatter(stdout);
+        callback(edges);
+    }
+    
+
     child_process.exec(command, settings, function (error, stdout, stderr) {
-        try {
-            var edges = closureCompilerToLacunaFormatter(stdout);
-            callback(edges);
-        } catch (e) {
-            console.log(e);
-            callback(null);
-        }
+        onResult(stdout);        
     });
 }
 
@@ -83,7 +83,11 @@ function closeCompilerAnalyzer(runOptions, scripts, callback) {
  */
 function closureCompilerToLacunaFormatter(output) {
     var edges = [];
-    var ccOutput = JSON.parse(output.trim());
+    try {
+        var ccOutput = JSON.parse(output.trim());
+    } catch (e) {
+        return null;
+    }
     var nodes = ccOutput.nodes;
     
     ccOutput.links.forEach(link => {
@@ -139,6 +143,7 @@ function getSrcPath(pwdPath, runOptions) {
 
     if (dir != srcPath.slice(0, dir.length)) {
         console.log("[getSrcPath] invalid path: ", srcPath, dir);
+        console.log(runOptions);
     }
     return srcPath.slice(dir.length + 1);
 }

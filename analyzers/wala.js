@@ -50,7 +50,7 @@ function walaAnalyzer(file, callback) {
 	let command = 'java -jar ' + jarFile + ' ' + file;
 	let settings = {
 		maxBuffer: 1024 * 1000 * 1000,	// 1 GB
-		timeout: lacunaSettings.ANALYZER_TIMEOUT
+		//timeout: lacunaSettings.ANALYZER_TIMEOUT
 	};
 
 	// Run the WALA jar.

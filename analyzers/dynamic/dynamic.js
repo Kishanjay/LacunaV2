@@ -12,6 +12,6 @@ module.exports = function(directory, entry, timeout, scripts, callback)
 		directory: directory,
 		entry: entry,
 		timeout: timeout,
-		scripts: scripts
+		scripts: scripts,
 	}, callback);
 };

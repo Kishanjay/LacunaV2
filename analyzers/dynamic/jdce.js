@@ -55,7 +55,7 @@ module.exports = {
 				// Save it, so we can access it later (and restore the original source).
 				scriptEditors[script.src] = js;
 
-				js.load(script.src, script.source);
+				js.load(script.src, script.source, settings.directory);
 
 				// Add a log call to each function in this script. The only argument (a function) specifies the format.
 				js.add_log_calls(logger);

@@ -151,7 +151,6 @@ async function createCompleteCallGraph(runOptions, onCallGraphComplete) {
     function completeAnalyzer(analyzer) {
         logger.info(`Analyzer[${analyzer.name}] finished`);
         analyzersCompleted[analyzer.name] = true;
-        console.log(analyzers);
         console.log(analyzersCompleted);
 
         /* Only do callback when each analyzer either completed or failed */
@@ -327,12 +326,17 @@ function retrieveScripts(directory, entry) {
 
     try { /* Include the eventAttributes script */
         if (lacunaSettings.EXPORT_EVENT_ATTRIBUTES) {
-            var ea_path = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, lacunaSettings.EVENT_ATTRIBUTES_FILENAME);
+            var relativePathDifference = path.relative(directory, entryFile);
+            var numberOfNestedDirectories = relativePathDifference.split("/").length - 1; // counts the number of directories between the directory and the entry file
+            var relDirFix = "../".repeat(numberOfNestedDirectories);
+
+            var ea_path = path.join(lacunaSettings.LACUNA_OUTPUT_DIR, lacunaSettings.EVENT_ATTRIBUTES_FILENAME); // relative to directory
             var pwd_ea_path = path.join(directory, ea_path); // relative to pwd
+            var rel_ea_path = path.join(relDirFix, ea_path); // relative to entryfile
 
             var ea_source = new JsEditor(pwd_ea_path).getSource();
             scripts.push({
-                src: ea_path, // relative to sourceFolder
+                src: rel_ea_path, // relative to entryfile
                 source: ea_source,
                 type: "eventAttributes"
             });
