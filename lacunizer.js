@@ -1,7 +1,7 @@
-/** 
+/**
  * @author
  * Kishan Nirghin
- * 
+ *
  * @description
  * This file retrieves all functions of the project (with the help of ESprima)
  * Creates the call_graph with nodes representing the functions
@@ -45,9 +45,9 @@ function optimizeFiles(runOptions, callGraph) {
     var lazyLoader = new LazyLoader();
 
     /* remove dead functions per file, also fills the lazyload db */
-    for(var file in deadFunctionsByFile) { 
+    for(var file in deadFunctionsByFile) {
         if (!deadFunctionsByFile.hasOwnProperty(file)) { continue; }
-        
+
         var deadFunctions = deadFunctionsByFile[file];
         removeFunctionsFromFile(deadFunctions, file, runOptions, lazyLoader);
     }
@@ -61,7 +61,7 @@ function optimizeFiles(runOptions, callGraph) {
 /**
  * Removes the identified dead functions from this file
  * For JS files it identifies the functions by their respective index
- * 
+ *
  * HTML files are slightly more complex as the functionIndex is only relative to
  * the script tags.
  */
@@ -89,34 +89,34 @@ function removeFunctionsFromFile(functions, file, runOptions, lazyLoader) {
             jse.replaceFunction(deadFunction, "");
         };
     }
-    if (optimizationLevel == 3) { // replace with null    
+    if (optimizationLevel == 3) { // replace with null
         removeFunction = (deadFunction) => {
             jse.removeFunction(deadFunction);
         };
     }
-    
+
     functions.forEach(deadFunction => {
         removeFunction(deadFunction);
     });
-    
+
     jse.saveFile();
 }
 
 /**
  * The functionality that creates the entire callGraph
  * Part 1: it creates the empty callgraph with only the nodes (which represent
- * functions) by fetching all script data from the entry file; from which it 
+ * functions) by fetching all script data from the entry file; from which it
  * will fetch all functions and insert these as nodes in the callgraph.
- * 
- * Part 2: it will run every chosen analyzer on the sourceFolder that will 
+ *
+ * Part 2: it will run every chosen analyzer on the sourceFolder that will
  * mark the different nodes as alive by creating edges in the callgraph.
- * 
+ *
  * Part 3: once every analyzer is done, we can assume that the callgraph is
  * completed.
- * 
+ *
  * @returns callback(onCallGraphComplete)
  * @param callGraph contains the entire callgraph object
- * @param analyzerResults contains information about which edges were 
+ * @param analyzerResults contains information about which edges were
  * drawn by which analyzer
  */
 async function createCompleteCallGraph(runOptions, onCallGraphComplete) {
@@ -131,7 +131,7 @@ async function createCompleteCallGraph(runOptions, onCallGraphComplete) {
 
     for (var analyzer of analyzers) {
         analyzersCompleted[analyzer.name] = false;
-        
+
         try {
             var analyzerResult = await runAnalyzer(analyzer, runOptions, callGraph, scripts);
             analyzerResults.push(analyzerResult);
@@ -144,7 +144,7 @@ async function createCompleteCallGraph(runOptions, onCallGraphComplete) {
 
     /**
      * Part 3: (not really part 3, more like a part 2+)
-     * 
+     *
      * Marks an analyzer as completed, and checks if we're done
      * performs the callback when all analyzers are done marking the callgraph
      */
@@ -170,14 +170,14 @@ function runAnalyzer(analyzer, runOptions, callGraph, scripts) {
             /* The analyzers essentially have all project information available */
             analyzer.object.run(runOptions, callGraph, scripts, (edges) => {
                 if (!edges) { edges = []; }
-    
+
                 logger.silly(`Analyzer[${analyzer.name}] aliveFunctions: ${edges.length}`)
                 resolve({
                     analyzer: analyzer.name,
                     edges: edges
                 });
             });
-        } catch (e) { reject(e); } 
+        } catch (e) { reject(e); }
     });
 }
 
@@ -207,7 +207,7 @@ function removeNestedFunctions(functionsByFile) {
     /* Remove the nested functions PER file */
     for (var file in functionsByFile) {
         if (!functionsByFile.hasOwnProperty(file)) { continue; }
-        
+
         var functions = functionsByFile[file];
 
         /* The actual magic relies on the helper function */
@@ -247,11 +247,11 @@ function getNonNestedFunctions(functions) {
 /**
  * Fairly complex function that is really only a helper function to deal
  * with the nested function problem.
- * 
+ *
  * The main idea behind this function is that it creates an array of all
- * function ranges that are ocupied. Every rangeArray item contains the 
+ * function ranges that are ocupied. Every rangeArray item contains the
  * range of an existing function. Therefore if a function range falls
- * between any of the outerRangeArray items, we can conclude that it is 
+ * between any of the outerRangeArray items, we can conclude that it is
  * infact a nested function.
  */
 function getOuterRangeArray(functions) {
@@ -259,11 +259,11 @@ function getOuterRangeArray(functions) {
     functions.forEach(func => {
 
         /* Checks if the new function range is already in there
-            Also updates the outerRangeArray if that used to contain a 
+            Also updates the outerRangeArray if that used to contain a
             nested function.
             */
-        var isNested = outerRangeArray.some((range) => {    
-            if (func.range[0] >= range[0] && func.range[1] <= range[1]) { 
+        var isNested = outerRangeArray.some((range) => {
+            if (func.range[0] >= range[0] && func.range[1] <= range[1]) {
                 return true; /* do nothing since the new func is nested */
             }
             if (func.range[0] < range[0] && func.range[1] > range[1]) {
@@ -276,7 +276,9 @@ function getOuterRangeArray(functions) {
             if (func.range[0] > range[1] && func.range[1] > range[1]) {
                 return false; /* new range on the top side */
             }
-            console.log("Invalid range error"); process.exit();
+            console.log("Invalid range error");
+            // TODO: ??????
+            //process.exit();
         });
 
         /* new range will be added to the array (as copy) */
@@ -286,7 +288,7 @@ function getOuterRangeArray(functions) {
 }
 
 /**
- * Retrieves the functions from javascript 
+ * Retrieves the functions from javascript
  */
 function retrieveFunctions(scripts) {
     var functions = [];
@@ -349,10 +351,10 @@ function retrieveScripts(directory, entry) {
 
 /**
  * Retrieves the analyzer objects
- * The analyzers are created as classes, this function will map the analyzer 
+ * The analyzers are created as classes, this function will map the analyzer
  * names to a corresponding object of the analyzer.
- * 
- * @param {*} analyzerNames 
+ *
+ * @param {*} analyzerNames
  * @returns [{name: <String>, object: <AnalyzerObject>}]
  */
 function retrieveAnalyzers(analyzerNames) {

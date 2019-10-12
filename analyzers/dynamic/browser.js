@@ -20,7 +20,8 @@ module.exports = function()
 	this.page = null;
 	this.server = null;
 
-	this.min_required_time = 3000;
+// TODO: for some cases 10 sec is not enough!
+	this.min_required_time = 10000;
 
 
 	this.load = function(dir, entry, timeout)
@@ -36,18 +37,18 @@ module.exports = function()
 			});
 		}
 		app.use(express.static(dir));
-		
-		
+
+
 		this.server = app.listen(port, () => {
 			logger.info(`Analyzer[dynamic] localhost:${port}`)
 			logger.debug(`Hosting: ${dir}/${entry}`);
 		});
 		var url = "http://localhost:" + port + "/" + entry; //"/" + urlDir +
-		
+
 		return new Promise(async (resolve, reject) => {
 			this.browser = await puppeteer.launch({headless: false}); // await
 			this.page = await this.browser.newPage();
-			
+
 			var consoleLogs = [];
 			this.page.on('console', msg => consoleLogs.push(msg.text()));
 

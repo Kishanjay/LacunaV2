@@ -1,7 +1,7 @@
 /**
  * @description Class that is responsible for editing HTML files.
  * Contains methods to retrieve JS files or code.
- * 
+ *
  * @version 0.1
  * @author Kishan Nirghin
  * @Date 12-02-2019
@@ -16,17 +16,23 @@ const logger = require("./_logger");
 
 VALID_JS_TYPES = ['text/javascript', 'application/javascript', 'application/ecmascript', 'text/ecmascript'];
 
+String.prototype.replaceAll = function(search, replacement) {
+    var target = this;
+    return target.replace(new RegExp(search, 'g'), replacement);
+};
+
+
 module.exports = class HTMLEditor {
     loadFile(filePath) {
         this.filePath = filePath; /* relative to pwd */
-        this.source = this.originalSource = fs.readFileSync(filePath).toString();
+        this.source = this.originalSource = fs.readFileSync(filePath).toString().replaceAll('async=""',"async").replaceAll('defer=""','defer');
         this.html = this.originalHtml = cheerio.load(this.source);
         return this;
     }
 
     /**
      * This function responsible for retrieving ALL external JS files.
-     * That means everything but the inline JS. 
+     * That means everything but the inline JS.
      */
     getExternalScripts() {
         var cScripts = this.html('script');
@@ -49,7 +55,7 @@ module.exports = class HTMLEditor {
                 index: index,
                 source: fs.readFileSync(absoluteScriptSrc).toString(),
             });
-            
+
         });
         return scripts;
     }
@@ -78,11 +84,11 @@ module.exports = class HTMLEditor {
 
     /**
      * Updates lines of code from the HTML file
-     * 
+     *
      * The index function may fail when there are weird linebreaks
      */
     updateCode(oldCode, newCode) {
-        var index = this.source.indexOf(oldCode); 
+        var index = this.source.indexOf(oldCode);
         if (index < 0) {
             return logger.error(`[html_editor] cannot update code: '${oldCode}' not found`);
         }
@@ -119,7 +125,7 @@ module.exports = class HTMLEditor {
 
     /**
      * Downloads and uses an online script
-     * 
+     *
      * First it downloads it to the currectDirectory
      * Then it updates all references in the current file to use the local
      * version of the script
@@ -129,7 +135,7 @@ module.exports = class HTMLEditor {
         logger.verbose(`Downloading ${scriptSrc}`);
 
         var onlineScriptContent = downloadFileSync(scriptSrc);
-        var downloadedFileName = "imported_" + path.basename(scriptSrc);
+        var downloadedFileName = "imported_" + getRandomFilename(6) + ".js";
         var pwdFilePath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
         fs.writeFileSync(pwdFilePath, onlineScriptContent);
 
@@ -156,7 +162,7 @@ module.exports = class HTMLEditor {
             /* If the type attribute is set it should be valid for JS */
             var scriptType = cScriptElement.attribs["type"];
             if (scriptType && !VALID_JS_TYPES.includes(scriptType)) { return; }
-            
+
             /* Store the inline script into a local file */
             var inlineScriptContent = cheerio(cScriptElement).html();
             var randomFileName = "exported_" + getRandomFilename(6) + ".js";
@@ -176,7 +182,7 @@ module.exports = class HTMLEditor {
             this.saveFile();
 
 
-            
+
         });
     }
 }
@@ -197,10 +203,10 @@ function isExternallyHosted(scriptSrc) {
 function getRandomFilename(length) {
     var text = "";
     var possible = "abcdefghijklmnopqrstuvwxyz0123456789";
-  
+
     for (var i = 0; i < length; i++)
       text += possible.charAt(Math.floor(Math.random() * possible.length));
-  
+
     return text;
 }
 
@@ -244,12 +250,3 @@ function getHtmlEventAttributes() {
         "ontoggle"
     ];
 }
-
-
-
-
-
-
-
-
-
