@@ -7,7 +7,9 @@
  */
 
 const path = require("path"),
-	child_process = require("child_process");
+    child_process = require("child_process");
+    
+const lacunaSettings = require("../_settings");
 
 module.exports = function()
 {
@@ -45,7 +47,8 @@ function tajsAnalyzer(file, callback) {
     var jarFile = path.join(__dirname, 'tajs', 'tajs-all.jar');
     let command = 'java -jar ' + jarFile +  ' -quiet -callgraph ' + file;
 	let settings = {
-		maxBuffer: 1024 * 1000 * 1000	// 1 GB
+        maxBuffer: 1024 * 1000 * 1000,	// 1 GB
+        timeout: lacunaSettings.ANALYZER_TIMEOUT
 	};
 
     console.log(command);

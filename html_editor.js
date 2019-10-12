@@ -147,7 +147,7 @@ module.exports = class HTMLEditor {
     /**
      * Exports all internal JS scrips to their own file
      */
-    exportInternalScripts(directory) {
+    exportInternalScripts(directory, entryFile) {
         var cScripts = this.html('script');
 
         cScripts.each((index, cScriptElement) => {
@@ -165,7 +165,7 @@ module.exports = class HTMLEditor {
             fs.writeFileSync(filePath, inlineScriptContent);
 
             /* Since the lacuna_cache resides at the framework directory level, references should take it into account */
-            var relativePathDifference = path.relative(directory, entryFile);
+            var relativePathDifference = path.relative(directory, path.join(directory, entryFile));
             var numberOfNestedDirectories = relativePathDifference.split("/").length - 1; // counts the number of directories between the directory and the entry file
             var relDirFix = "../".repeat(numberOfNestedDirectories);
 

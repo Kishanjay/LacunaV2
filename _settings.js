@@ -3,7 +3,7 @@ module.exports = {
      * Where the analyzers are stored, relative to Lacuna 
      */
     ANALYZERS_DIR: "analyzers",
-    ANALYZER_TIMEOUT: 5000, // miliseconds
+    ANALYZER_TIMEOUT: 60000, // miliseconds
 
 
     /**
