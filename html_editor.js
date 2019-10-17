@@ -27,6 +27,22 @@ module.exports = class HTMLEditor {
         this.filePath = filePath; /* relative to pwd */
         this.source = this.originalSource = fs.readFileSync(filePath).toString().replaceAll('async=""',"async").replaceAll('defer=""','defer');
         this.html = this.originalHtml = cheerio.load(this.source);
+        var cScripts = this.html('script');
+
+        cScripts.each((index, cScriptElement) => {
+            if (cScriptElement.attribs["src"] && cScriptElement.attribs["src"].toLowerCase().startsWith("/"))
+            {
+            console.log(cScriptElement.attribs["src"]);
+            var oldReference = this.html.html(cScriptElement);
+            var newReference = this.html.html(cScriptElement).replace("/", "");
+            console.log(newReference);
+            this.updateCode(oldReference, newReference);
+            this.saveFile();
+          }
+
+
+        });
+
         return this;
     }
 
@@ -136,8 +152,9 @@ module.exports = class HTMLEditor {
 
         var onlineScriptContent = downloadFileSync(scriptSrc);
         var downloadedFileName = "imported_" + getRandomFilename(6) + ".js";
+        var unminifedOnlineScriptContent = beautify(onlineScriptContent, { indent_size: 2, space_in_empty_paren: true });
         var pwdFilePath = path.join(directory, lacunaSettings.LACUNA_OUTPUT_DIR, downloadedFileName);
-        fs.writeFileSync(pwdFilePath, onlineScriptContent);
+        fs.writeFileSync(pwdFilePath, unminifedOnlineScriptContent);
 
         /* Update reference in HTML file */
         var oldReference = this.html.html(cScriptElement);
