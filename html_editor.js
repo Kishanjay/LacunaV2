@@ -25,7 +25,12 @@ String.prototype.replaceAll = function(search, replacement) {
 module.exports = class HTMLEditor {
     loadFile(filePath) {
         this.filePath = filePath; /* relative to pwd */
-        this.source = this.originalSource = fs.readFileSync(filePath).toString().replaceAll('async=""',"async").replaceAll('defer=""','defer');
+        this.source = this.originalSource = fs.readFileSync(filePath).toString().replaceAll('async=""',"async")
+                                                                                .replaceAll('defer=""','defer')
+                                                                                .replaceAll("/n"," ")
+                                                                                .replaceAll("async=true",'async="true"')
+                                                                                .replaceAll('nonce=""','nonce')
+                                                                                .replaceAll("script type='text/javascript'",'script type="text/javascript"');
         this.html = this.originalHtml = cheerio.load(this.source);
         var cScripts = this.html('script');
 
