@@ -2,27 +2,29 @@
 /**
  * @author Kishan Nirghin
  * @description TAJS adapter for Lacuna
- * 
+ *
  * @repository https://github.com/cs-au-dk/TAJS
  */
 
 const path = require("path"),
-	child_process = require("child_process");
+    child_process = require("child_process");
+
+const lacunaSettings = require("../_settings");
 
 module.exports = function()
 {
 	this.run = function(runOptions, callGraph, scripts, callback) {
 		var entryFile = path.join(runOptions.directory, runOptions.entry);
-		
+
 		tajsAnalyzer(entryFile, edges => {
         /* {caller: {file, start}, callee: {file, start} } */
-            
+
             edges.forEach(function (edge) {
                 if (!edge.caller || !edge.callee) { return; }
                 /* Creates a valid relativePath to sourceDir (instead of pwd)*/
                 edge.caller.file = getSrcPath(edge.caller.file, runOptions);
                 edge.callee.file = getSrcPath(edge.callee.file, runOptions);
-                
+
                 /* Convert the nodeData to functionData */
                 edge.caller = callGraph.convertToFunctionData(edge.caller);
                 edge.callee = callGraph.convertToFunctionData(edge.callee);
@@ -45,7 +47,8 @@ function tajsAnalyzer(file, callback) {
     var jarFile = path.join(__dirname, 'tajs', 'tajs-all.jar');
     let command = 'java -jar ' + jarFile +  ' -quiet -callgraph ' + file;
 	let settings = {
-		maxBuffer: 1024 * 1000 * 1000	// 1 GB
+        maxBuffer: 1024 * 1000 * 1000,	// 1 GB
+        timeout: lacunaSettings.ANALYZER_TIMEOUT
 	};
 
     console.log(command);
@@ -58,26 +61,26 @@ function tajsAnalyzer(file, callback) {
 
 /**
  * Formats the output of TAJS to a more Lacuna friendly one
- * 
+ *
  * Expected TAJS output:
  * function b1() at example/demo.out/fol/script.js:1:1 may be called from:
  *   example/demo.out/fol/script.js:18:1
  *   example/demo.out/fol/script.js:44:1
  * function() at HOST(string-replace-model.js):1:1 may be called from:
  *   host-environment-sources-loader
- * 
+ *
  * For parsing this we make the following assumptions:
  *  - All caller callee relations will adhere to the same format:
  *     <functionName> at <filename>:<rowNum>:<colNum> may be called from:
  *     __<filename>:<rowNum>:<colNum>
  *      (etc.)
- * 
+ *
  * Returns:
  *  edges [{
  *  caller: {file: <String>, start: { line: groups.line, column: groups.column }}
  *  callee: {file: <String>, start: { line: groups.line, column: groups.column }}
  * }]
- * 
+ *
  * NOTE: esprima counts columns from 0, whilst tajs starts at 1.
  */
 function tajsToLacunaFormatter(output) {
@@ -93,7 +96,7 @@ function tajsToLacunaFormatter(output) {
             if (!matches) continue;
             var groups = matches.groups;
             callee = { file: groups.scriptSrc, start: { line: parseInt(groups.line), column: parseInt(groups.column - 1) } };
-            continue;    
+            continue;
         }
         else if (!isCallerLine(line)) {
             console.log("[tajsToLacunaFormatter] invalid line: ", line);
@@ -129,7 +132,8 @@ function getSrcPath(pwdPath, runOptions) {
     var dir = runOptions.directory; /* already normalized */
 
     if (dir != srcPath.slice(0, dir.length)) {
-        console.log("[getSrcPath] invalid path: ", srcPath);
+        //console.log("[getSrcPath] invalid path: ", srcPath);
+        return srcPath;
     }
     return srcPath.slice(dir.length + 1);
 }
