@@ -1,9 +1,9 @@
 module.exports = {
     /**
-     * Where the analyzers are stored, relative to Lacuna 
+     * Where the analyzers are stored, relative to Lacuna
      */
     ANALYZERS_DIR: "analyzers",
-    ANALYZER_TIMEOUT: 60000, // miliseconds
+    ANALYZER_TIMEOUT: 600000, // miliseconds
 
 
     /**
@@ -11,7 +11,7 @@ module.exports = {
      * NOTE that this directory will be removed/cleared on every run of Lacuna
      */
     LACUNA_OUTPUT_DIR: "lacuna_cache",
-    
+
     /**
      * Supported optimization levels
      */
@@ -24,23 +24,23 @@ module.exports = {
 
     /**
      * Wether Lacuna should also parse the externally hosted JS files
-     * For this the file will be downloaded and stored locally. 
+     * For this the file will be downloaded and stored locally.
      * The references in the HTML files will be updated and the local file will
      * be optimized where needed.
-     */ 
+     */
     IMPORT_EXTERNALLY_HOSTED_SCRIPTS: true,
 
     /**
      * Wether Lacuna should export the inline JS to its own file
      * generally this is a better coding practise
-     * 
+     *
      * NOTE: currently always does this (cannot disable)
      */
     EXPORT_INLINE_SCRIPTS: true,
 
 
     /**
-     * 
+     *
      */
     EXPORT_EVENT_ATTRIBUTES: true,
     EVENT_ATTRIBUTES_FILENAME: 'eventAttributes.js',
@@ -51,11 +51,11 @@ module.exports = {
      */
     LAZY_LOAD_SERVER_PORT: 8125,
 
-    /** 
+    /**
      * Converts functionData to a unique function ID
      */
     functionDataToId(functionData) {
         return `${functionData.file}[${functionData.bodyRange[0]}:${functionData.bodyRange[1]}]`;
     },
-    
+
 }

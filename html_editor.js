@@ -27,7 +27,7 @@ module.exports = class HTMLEditor {
         this.filePath = filePath; /* relative to pwd */
         this.source = this.originalSource = fs.readFileSync(filePath).toString().replaceAll('async=""',"async")
                                                                                 .replaceAll('defer=""','defer')
-                                                                                .replaceAll("/n"," ")
+                                                                                .replaceAll("script\n","script ")
                                                                                 .replaceAll("async=true",'async="true"')
                                                                                 .replaceAll('nonce=""','nonce')
                                                                                 .replaceAll("script type='text/javascript'",'script type="text/javascript"');
